@@ -1,12 +1,17 @@
+---
 # TPU Development Environment Kubernetes Configuration
 # Variables to replace before deployment:
 #   ${USER_NAME}: Developer username (for resource isolation)
 #   ${SSH_PUB_KEY}: SSH public key content (for SSH authentication)
+#   ${TPU_TYPE}: TPU accelerator type (e.g., tpu-v6e-slice)
+#   ${TPU_TOPOLOGY}: TPU topology (e.g., 1x1, 2x2, 4x4)
+#   ${TPU_COUNT}: Number of TPU chips (default: 1)
 ---
 apiVersion: v1
 kind: ConfigMap
 metadata:
   name: sgl-ssh-key-${USER_NAME}
+  namespace: ${K8S_NAMESPACE}
   labels:
     app: sgl-tpu
     developer: ${USER_NAME}
@@ -17,6 +22,7 @@ apiVersion: v1
 kind: Service
 metadata:
   name: sgl-svc-${USER_NAME}
+  namespace: ${K8S_NAMESPACE}
   labels:
     app: sgl-tpu
     developer: ${USER_NAME}
@@ -36,6 +42,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: sgl-tpu-${USER_NAME}
+  namespace: ${K8S_NAMESPACE}
   labels:
     app: sgl-tpu
     developer: ${USER_NAME}
@@ -51,9 +58,9 @@ spec:
         app: sgl-tpu
         developer: ${USER_NAME}
     spec:
-      # nodeSelector:
-      #   cloud.google.com/gke-tpu-accelerator: tpu-v6e-slice
-      #   cloud.google.com/gke-tpu-topology: 1x1
+      nodeSelector:
+        cloud.google.com/gke-tpu-accelerator: ${TPU_TYPE}
+        cloud.google.com/gke-tpu-topology: ${TPU_TOPOLOGY}
       containers:
       - name: sgl-jax
         image: ghcr.io/zhengkezhou1/sgl-jax-action:v0.0.4
@@ -65,11 +72,11 @@ spec:
           requests:
             cpu: "2"
             memory: "8Gi"
-            # google.com/tpu: 1
+            google.com/tpu: ${TPU_COUNT}
           limits:
             cpu: "4"
             memory: "12Gi"
-            # google.com/tpu: 1
+            google.com/tpu: ${TPU_COUNT}
         ports:
         - name: ssh
           containerPort: 22
@@ -96,4 +103,4 @@ spec:
       - name: ssh-key
         configMap:
           name: sgl-ssh-key-${USER_NAME}
-          defaultMode: 0644
+          defaultMode: 420
