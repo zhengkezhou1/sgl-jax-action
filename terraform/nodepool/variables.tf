@@ -29,7 +29,39 @@ variable "node_locations" {
 }
 
 variable "pool_name" {
-  description = "the name of the node pool to create"
-  type = string
-  default = "default-pool"
+  description = "the name of the TPU node pool to create"
+  type        = string
+  default     = "tpu-v6e-dev"
+}
+
+# CPU node pool variables
+variable "cpu_machine_type" {
+  description = "Machine type for CPU nodes (system components)"
+  type        = string
+  default     = "e2-medium"
+}
+
+variable "cpu_node_count" {
+  description = "Initial number of CPU nodes"
+  type        = number
+  default     = 1
+}
+
+variable "cpu_min_nodes" {
+  description = "Minimum number of CPU nodes in autoscaling"
+  type        = number
+  default     = 1
+}
+
+variable "cpu_max_nodes" {
+  description = "Maximum number of CPU nodes in autoscaling"
+  type        = number
+  default     = 3
+}
+
+# TPU node pool variables
+variable "tpu_node_count" {
+  description = "Number of TPU nodes"
+  type        = number
+  default     = 1
 }

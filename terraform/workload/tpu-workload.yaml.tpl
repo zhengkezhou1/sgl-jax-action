@@ -58,6 +58,7 @@ spec:
         app: sgl-tpu
         developer: ${USER_NAME}
     spec:
+      serviceAccountName: ${K8S_SERVICE_ACCOUNT_NAME}
       nodeSelector:
         cloud.google.com/gke-tpu-accelerator: ${TPU_TYPE}
         cloud.google.com/gke-tpu-topology: ${TPU_TOPOLOGY}
