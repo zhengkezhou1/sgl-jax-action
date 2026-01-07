@@ -143,7 +143,7 @@ pip install -U "jax[tpu]"
 python3 -c "import jax; print(jax.devices())"
 ```
 
-### 4. 测试服务可用性
+### 3. 测试服务可用性
 
 ```bash
 git clone https://github.com/sgl-project/sglang-jax
