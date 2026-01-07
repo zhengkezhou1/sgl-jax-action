@@ -63,5 +63,5 @@ variable "cpu_max_nodes" {
 variable "tpu_node_count" {
   description = "Number of TPU nodes"
   type        = number
-  default     = 1
+  default     = 3
 }

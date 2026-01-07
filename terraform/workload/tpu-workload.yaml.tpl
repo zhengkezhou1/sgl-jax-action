@@ -102,12 +102,12 @@ spec:
                   fi
         resources:
           requests:
-            cpu: "2"
-            memory: "8Gi"
+            cpu: "12"
+            memory: "60Gi"
             google.com/tpu: ${TPU_COUNT}
           limits:
-            cpu: "4"
-            memory: "12Gi"
+            cpu: "24"
+            memory: "120Gi"
             google.com/tpu: ${TPU_COUNT}
         ports:
         - name: ssh

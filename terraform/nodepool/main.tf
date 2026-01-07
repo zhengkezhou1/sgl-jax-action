@@ -56,10 +56,5 @@ resource "google_container_node_pool" "tpu_node_pool" {
   node_config {
     machine_type = var.machine_type
     spot         = false
-
-    # Enable the GKE Metadata Server for Workload Identity
-    workload_metadata_config {
-      mode = "GKE_METADATA"
-    }
   }
 }
