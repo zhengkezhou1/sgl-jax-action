@@ -48,6 +48,8 @@ metadata:
     developer: ${USER_NAME}
 spec:
   replicas: 1
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app: sgl-tpu
@@ -69,6 +71,35 @@ spec:
         tty: true
         securityContext:
           privileged: true
+        lifecycle:
+          postStart:
+            exec:
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  # Create TPU environment file from container environment variables
+                  cat > /etc/profile.d/tpu-env.sh << TPUEOF
+                  # TPU Environment Variables (auto-generated from container env)
+                  export TPU_ACCELERATOR_TYPE="$${TPU_ACCELERATOR_TYPE}"
+                  export TPU_CHIPS_PER_HOST_BOUNDS="$${TPU_CHIPS_PER_HOST_BOUNDS}"
+                  export TPU_HOST_BOUNDS="$${TPU_HOST_BOUNDS}"
+                  export TPU_RUNTIME_METRICS_PORTS="$${TPU_RUNTIME_METRICS_PORTS}"
+                  export TPU_SKIP_MDS_QUERY="$${TPU_SKIP_MDS_QUERY}"
+                  export TPU_TOPOLOGY_ALT="$${TPU_TOPOLOGY_ALT}"
+                  export TPU_TOPOLOGY_WRAP="$${TPU_TOPOLOGY_WRAP}"
+                  export TPU_TOPOLOGY="$${TPU_TOPOLOGY}"
+                  export TPU_WORKER_HOSTNAMES="$${TPU_WORKER_HOSTNAMES}"
+                  export TPU_WORKER_ID="$${TPU_WORKER_ID}"
+                  export VBAR_CONTROL_SERVICE_URL="$${VBAR_CONTROL_SERVICE_URL}"
+                  export JAX_COMPILATION_CACHE_DIR="$${JAX_COMPILATION_CACHE_DIR:-/tmp/jit_cache}"
+                  TPUEOF
+
+                  # Auto-load TPU environment for all login shells
+                  if ! grep -q 'source /etc/profile.d/tpu-env.sh' /root/.bashrc 2>/dev/null; then
+                    echo '# Auto-load TPU environment variables' >> /root/.bashrc
+                    echo 'source /etc/profile.d/tpu-env.sh' >> /root/.bashrc
+                  fi
         resources:
           requests:
             cpu: "2"
