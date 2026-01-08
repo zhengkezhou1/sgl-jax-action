@@ -1,73 +1,69 @@
-/*
-Copyright 2016 The Kubernetes Authors.
-
-Licensed under the Apache License, Version 2.0 (the "License");
-you may not use this file except in compliance with the License.
-You may obtain a copy of the License at
-
-    http://www.apache.org/licenses/LICENSE-2.0
-
-Unless required by applicable law or agreed to in writing, software
-distributed under the License is distributed on an "AS IS" BASIS,
-WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-See the License for the specific language governing permissions and
-limitations under the License.
-*/
-
-// Note: the example only works with the code within the same release/branch.
 package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
-	"time"
+	"log"
+	"net/http"
 
-	"k8s.io/apimachinery/pkg/api/errors"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
-	//
-	// Uncomment to load all auth plugins
-	// _ "k8s.io/client-go/plugin/pkg/client/auth"
-	//
-	// Or uncomment to load specific auth plugins
-	// _ "k8s.io/client-go/plugin/pkg/client/auth/oidc"
 )
 
 func main() {
-	// creates the in-cluster config
+	// 1. 初始化 Kubernetes Client
+	// 使用 InClusterConfig，这要求 Pod 必须绑定了正确的 ServiceAccount
 	config, err := rest.InClusterConfig()
 	if err != nil {
-		panic(err.Error())
+		log.Fatalf("Failed to get in-cluster config: %v", err)
 	}
-	// creates the clientset
+
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		panic(err.Error())
+		log.Fatalf("Failed to create clientset: %v", err)
 	}
-	for {
-		// get pods in all the namespaces by omitting namespace
-		// Or specify namespace to get pods in particular namespace
-		pods, err := clientset.CoreV1().Pods("").List(context.TODO(), metav1.ListOptions{})
+
+	// 2. 注册路由处理函数
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Write([]byte("ok"))
+	})
+
+	http.HandleFunc("/api/pods", func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		// 列出 default 命名空间下的所有 Pod
+		// 在实际业务中，这里应该接收参数或列出特定 Selector 的 Pod
+		pods, err := clientset.CoreV1().Pods("default").List(context.Background(), metav1.ListOptions{})
 		if err != nil {
-			panic(err.Error())
-		}
-		fmt.Printf("There are %d pods in the cluster\n", len(pods.Items))
-
-		// Examples for error handling:
-		// - Use helper functions e.g. errors.IsNotFound()
-		// - And/or cast to StatusError and use its properties like e.g. ErrStatus.Message
-		_, err = clientset.CoreV1().Pods("default").Get(context.TODO(), "example-xxxxx", metav1.GetOptions{})
-		if errors.IsNotFound(err) {
-			fmt.Printf("Pod example-xxxxx not found in default namespace\n")
-		} else if statusError, isStatus := err.(*errors.StatusError); isStatus {
-			fmt.Printf("Error getting pod %v\n", statusError.ErrStatus.Message)
-		} else if err != nil {
-			panic(err.Error())
-		} else {
-			fmt.Printf("Found example-xxxxx pod in default namespace\n")
+			log.Printf("Error listing pods: %v", err)
+			http.Error(w, fmt.Sprintf("Failed to list pods: %v", err), http.StatusInternalServerError)
+			return
 		}
 
-		time.Sleep(10 * time.Second)
+		response := make([]string, 0, len(pods.Items))
+		for _, pod := range pods.Items {
+			response = append(response, pod.Name)
+		}
+
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]interface{}{
+			"count": len(pods.Items),
+			"pods":  response,
+		})
+	})
+
+	// 3. 启动 HTTP 服务
+	port := "8080"
+	log.Printf("Starting middleware server on port %s", port)
+
+	// Server 会一直阻塞在这里，直到出错
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("Server failed: %v", err)
 	}
 }
