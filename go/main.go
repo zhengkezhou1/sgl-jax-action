@@ -7,14 +7,27 @@ import (
 	"log"
 	"net/http"
 
+	appsv1 "k8s.io/api/apps/v1"
+	corev1 "k8s.io/api/core/v1"
+	"k8s.io/apimachinery/pkg/api/errors"
+	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
+	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 )
 
+// JobRequest defines the payload for submitting a TPU job
+type JobRequest struct {
+	UserName    string `json:"user_name"`
+	SSHPubKey   string `json:"ssh_pub_key"`
+	TPUType     string `json:"tpu_type"`     // e.g., "tpu-v6e-slice"
+	TPUTopology string `json:"tpu_topology"` // e.g., "1x1"
+	TPUCount    int64  `json:"tpu_count"`    // e.g., 1
+}
+
 func main() {
-	// 1. 初始化 Kubernetes Client
-	// 使用 InClusterConfig，这要求 Pod 必须绑定了正确的 ServiceAccount
+	// 1. Initialize Kubernetes In-Cluster Client
 	config, err := rest.InClusterConfig()
 	if err != nil {
 		log.Fatalf("Failed to get in-cluster config: %v", err)
@@ -25,45 +38,258 @@ func main() {
 		log.Fatalf("Failed to create clientset: %v", err)
 	}
 
-	// 2. 注册路由处理函数
+	// 2. Register Routes
 	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 		w.Write([]byte("ok"))
 	})
 
-	http.HandleFunc("/api/pods", func(w http.ResponseWriter, r *http.Request) {
+	http.HandleFunc("/api/pods", handleListPods(clientset))
+	http.HandleFunc("/api/jobs", handleSubmitJob(clientset))
+	http.HandleFunc("/api/jobs/status", handleGetJobStatus(clientset))
+
+	// 3. Start HTTP Server
+	port := "8080"
+	log.Printf("Starting middleware server on port %s", port)
+	if err := http.ListenAndServe(":"+port, nil); err != nil {
+		log.Fatalf("Server failed: %v", err)
+	}
+}
+
+// handleListPods returns a list of pod names in the default namespace
+func handleListPods(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+		pods, err := clientset.CoreV1().Pods("default").List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+		names := make([]string, 0, len(pods.Items))
+		for _, p := range pods.Items {
+			names = append(names, p.Name)
+		}
+		json.NewEncoder(w).Encode(map[string]interface{}{"count": len(names), "pods": names})
+	}
+}
+
+// handleGetJobStatus retrieves the IP and runtime status of a TPU job
+func handleGetJobStatus(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
 			return
 		}
 
-		// 列出 default 命名空间下的所有 Pod
-		// 在实际业务中，这里应该接收参数或列出特定 Selector 的 Pod
-		pods, err := clientset.CoreV1().Pods("default").List(context.Background(), metav1.ListOptions{})
-		if err != nil {
-			log.Printf("Error listing pods: %v", err)
-			http.Error(w, fmt.Sprintf("Failed to list pods: %v", err), http.StatusInternalServerError)
+		userName := r.URL.Query().Get("user_name")
+		if userName == "" {
+			http.Error(w, "Missing user_name query parameter", http.StatusBadRequest)
 			return
 		}
 
-		response := make([]string, 0, len(pods.Items))
-		for _, pod := range pods.Items {
-			response = append(response, pod.Name)
+		ctx := context.Background()
+		namespace := "default"
+		svcName := fmt.Sprintf("sgl-svc-%s", userName)
+		deployName := fmt.Sprintf("sgl-tpu-%s", userName)
+
+		// Fetch Service to get External IP
+		svc, err := clientset.CoreV1().Services(namespace).Get(ctx, svcName, metav1.GetOptions{})
+		if errors.IsNotFound(err) {
+			http.Error(w, "Job resources not found", http.StatusNotFound)
+			return
+		} else if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		// Fetch Deployment to check readiness
+		deploy, err := clientset.AppsV1().Deployments(namespace).Get(ctx, deployName, metav1.GetOptions{})
+		deployReady := false
+		if err == nil {
+			deployReady = deploy.Status.ReadyReplicas > 0
+		}
+
+		// Extract External IP and determine overall status
+		var externalIP string
+		status := "Provisioning" // Waiting for IP
+
+		if len(svc.Status.LoadBalancer.Ingress) > 0 {
+			externalIP = svc.Status.LoadBalancer.Ingress[0].IP
+			if deployReady {
+				status = "Ready"
+			} else {
+				status = "Booting" // IP allocated, container starting
+			}
+		}
+
+		response := map[string]interface{}{
+			"job_id":      userName,
+			"status":      status,
+			"external_ip": externalIP,
+			"ssh_command": "",
+		}
+
+		if externalIP != "" {
+			response["ssh_command"] = fmt.Sprintf("ssh root@%s", externalIP)
 		}
 
 		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(map[string]interface{}{
-			"count": len(pods.Items),
-			"pods":  response,
-		})
-	})
-
-	// 3. 启动 HTTP 服务
-	port := "8080"
-	log.Printf("Starting middleware server on port %s", port)
-
-	// Server 会一直阻塞在这里，直到出错
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
+		json.NewEncoder(w).Encode(response)
 	}
 }
+
+// handleSubmitJob orchestrates the creation of TPU workload resources
+func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+			return
+		}
+
+		var req JobRequest
+		if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+			http.Error(w, "Invalid request body", http.StatusBadRequest)
+			return
+		}
+
+		if req.UserName == "" || req.SSHPubKey == "" {
+			http.Error(w, "user_name and ssh_pub_key are required", http.StatusBadRequest)
+			return
+		}
+
+		// Apply default values if not specified
+		if req.TPUType == "" {
+			req.TPUType = "tpu-v4-podslice"
+		}
+		if req.TPUTopology == "" {
+			req.TPUTopology = "2x2x1"
+		}
+		if req.TPUCount <= 0 {
+			req.TPUCount = 4
+		}
+
+		ctx := context.Background()
+		namespace := "default"
+		labels := map[string]string{"app": "sgl-tpu", "developer": req.UserName}
+
+		// 1. Ensure ConfigMap for SSH Keys exists
+		cmName := fmt.Sprintf("sgl-ssh-key-%s", req.UserName)
+		configMap := &corev1.ConfigMap{
+			ObjectMeta: metav1.ObjectMeta{Name: cmName, Labels: labels},
+			Data:       map[string]string{"authorized_keys": req.SSHPubKey},
+		}
+		ensureConfigMap(ctx, clientset, namespace, configMap)
+
+		// 2. Ensure Service for SSH access exists
+		svcName := fmt.Sprintf("sgl-svc-%s", req.UserName)
+		service := &corev1.Service{
+			ObjectMeta: metav1.ObjectMeta{Name: svcName, Labels: labels},
+			Spec: corev1.ServiceSpec{
+				Selector:        labels,
+				Type:            corev1.ServiceTypeLoadBalancer,
+				SessionAffinity: corev1.ServiceAffinityClientIP,
+				Ports:           []corev1.ServicePort{{Name: "ssh", Port: 22, TargetPort: intstr.FromInt(22), Protocol: corev1.ProtocolTCP}},
+			},
+		}
+		ensureService(ctx, clientset, namespace, service)
+
+		// 3. Ensure Deployment for TPU Workload exists
+		deployName := fmt.Sprintf("sgl-tpu-%s", req.UserName)
+		tpuResourceName := corev1.ResourceName("google.com/tpu")
+		tpuQty := resource.NewQuantity(req.TPUCount, resource.DecimalSI)
+
+		deployment := &appsv1.Deployment{
+			ObjectMeta: metav1.ObjectMeta{Name: deployName, Labels: labels},
+			Spec: appsv1.DeploymentSpec{
+				Replicas: int32Ptr(1),
+				Selector: &metav1.LabelSelector{MatchLabels: labels},
+				Template: corev1.PodTemplateSpec{
+					ObjectMeta: metav1.ObjectMeta{Labels: labels},
+					Spec: corev1.PodSpec{
+						NodeSelector: map[string]string{
+							"cloud.google.com/gke-tpu-accelerator": req.TPUType,
+							"cloud.google.com/gke-tpu-topology":    req.TPUTopology,
+						},
+						Containers: []corev1.Container{
+							{
+								Name:            "sgl-jax",
+								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action:v0.0.4",
+								SecurityContext: &corev1.SecurityContext{Privileged: boolPtr(true)},
+								Resources: corev1.ResourceRequirements{
+									Requests: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("2"),
+										corev1.ResourceMemory: resource.MustParse("8Gi"),
+										tpuResourceName:       *tpuQty,
+									},
+									Limits: corev1.ResourceList{
+										corev1.ResourceCPU:    resource.MustParse("4"),
+										corev1.ResourceMemory: resource.MustParse("12Gi"),
+										tpuResourceName:       *tpuQty,
+									},
+								},
+								Ports: []corev1.ContainerPort{{Name: "ssh", ContainerPort: 22}},
+								LivenessProbe: &corev1.Probe{
+									ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(22)}},
+									InitialDelaySeconds: 30,
+									PeriodSeconds:       10,
+								},
+								VolumeMounts: []corev1.VolumeMount{{Name: "ssh-key", MountPath: "/tmp/ssh-keys", ReadOnly: true}},
+							},
+						},
+						Volumes: []corev1.Volume{
+							{
+								Name: "ssh-key",
+								VolumeSource: corev1.VolumeSource{
+									ConfigMap: &corev1.ConfigMapVolumeSource{
+										LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
+										DefaultMode:          int32Ptr(0644),
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		}
+		ensureDeployment(ctx, clientset, namespace, deployment)
+
+		// Final response to client
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(map[string]string{
+			"status":    "submitted",
+			"job_id":    req.UserName,
+			"check_url": fmt.Sprintf("/api/jobs/status?user_name=%s", req.UserName),
+			"message":   "Job resources created. Poll the check_url for external IP.",
+		})
+	}
+}
+
+// ensureConfigMap creates or updates the ConfigMap idempotently
+func ensureConfigMap(ctx context.Context, client *kubernetes.Clientset, ns string, cm *corev1.ConfigMap) {
+	_, err := client.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
+	if errors.IsAlreadyExists(err) {
+		client.CoreV1().ConfigMaps(ns).Update(ctx, cm, metav1.UpdateOptions{})
+	}
+}
+
+// ensureService creates the Service if it doesn't exist
+func ensureService(ctx context.Context, client *kubernetes.Clientset, ns string, svc *corev1.Service) {
+	_, err := client.CoreV1().Services(ns).Create(ctx, svc, metav1.CreateOptions{})
+	if err != nil && !errors.IsAlreadyExists(err) {
+		log.Printf("Warning: failed to create service: %v", err)
+	}
+}
+
+// ensureDeployment creates or updates the Deployment idempotently
+func ensureDeployment(ctx context.Context, client *kubernetes.Clientset, ns string, deploy *appsv1.Deployment) {
+	_, err := client.AppsV1().Deployments(ns).Create(ctx, deploy, metav1.CreateOptions{})
+	if errors.IsAlreadyExists(err) {
+		client.AppsV1().Deployments(ns).Update(ctx, deploy, metav1.UpdateOptions{})
+	}
+}
+
+func int32Ptr(i int32) *int32 { return &i }
+func boolPtr(b bool) *bool    { return &b }
