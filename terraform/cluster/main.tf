@@ -32,7 +32,7 @@ resource "google_container_cluster" "primary" {
   # Define the private cluster configuration
   private_cluster_config {
     enable_private_nodes    = true
-    enable_private_endpoint = true # The master has a public IP
+    enable_private_endpoint = false # The master has a public IP
     master_global_access_config {
       enabled = true
     }

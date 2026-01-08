@@ -7,7 +7,7 @@ variable "namespace" {
 variable "chart_version" {
   description = "Version of the ArgoCD Helm chart"
   type        = string
-  default     = "7.7.13" # 对应 ArgoCD v2.13 左右的稳定版
+  default     = "7.7.13"
 }
 
 variable "values_yaml" {

@@ -24,9 +24,6 @@ module "argocd" {
   source = "../modules/argocd"
 
   namespace     = "argocd"
-  
-  # 可以在这里通过 values_yaml 覆盖默认配置，
-  # 例如关闭 HA 模式（省钱）或开启 Ingress
   values_yaml = <<EOF
 configs:
   params:
@@ -34,5 +31,7 @@ configs:
 server:
   extraArgs:
   - --insecure
+  service:
+    type: LoadBalancer
 EOF
 }
