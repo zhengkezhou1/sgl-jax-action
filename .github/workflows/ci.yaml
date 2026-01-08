@@ -19,9 +19,27 @@ env:
   IMAGE_NAME: ${{ github.repository }}
 
 jobs:
-  build-workload:
+  # Job to detect changes in specific paths
+  detect-changes:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name != 'workflow_dispatch' && contains(github.event.paths, 'docker/'))
+    outputs:
+      workload: ${{ steps.filter.outputs.workload }}
+      middleware: ${{ steps.filter.outputs.middleware }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            workload:
+              - 'docker/**'
+            middleware:
+              - 'go/**'
+
+  build-workload:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.workload == 'true' || github.event_name == 'workflow_dispatch' }}
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -56,8 +74,9 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
 
   build-middleware:
+    needs: detect-changes
+    if: ${{ needs.detect-changes.outputs.middleware == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event_name != 'workflow_dispatch' && contains(github.event.paths, 'go/'))
     permissions:
       contents: read
       packages: write
