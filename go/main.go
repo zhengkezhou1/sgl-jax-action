@@ -130,8 +130,9 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 						},
 						Containers: []corev1.Container{
 							{
-								Name:  "sgl-jax",
-								Image: "ghcr.io/zhengkezhou1/sgl-jax-action:v0.0.4",
+								Name:            "sgl-jax",
+								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action:latest",
+								SecurityContext: &corev1.SecurityContext{Privileged: boolPtr(true)},
 								Resources: corev1.ResourceRequirements{
 									Limits: corev1.ResourceList{"google.com/tpu": *tpuQty},
 								},
@@ -201,4 +202,8 @@ func handleGetJobStatus(c *kubernetes.Clientset) http.HandlerFunc {
 		}
 		json.NewEncoder(w).Encode(map[string]string{"status": "Ready", "external_ip": ip})
 	}
+}
+
+func boolPtr(b bool) *bool {
+	return &b
 }

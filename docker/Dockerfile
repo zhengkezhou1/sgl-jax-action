@@ -15,6 +15,15 @@ set -e\n\
 \n\
 echo "[INFO] Starting SSH setup..."\n\
 \n\
+# Ensure /var/run/sshd exists\n\
+mkdir -p /var/run/sshd\n\
+\n\
+# Generate host keys if they dont exist\n\
+if [ ! -f /etc/ssh/ssh_host_rsa_key ]; then\n\
+    echo "[INFO] Generating SSH host keys..."\n\
+    ssh-keygen -A\n\
+fi\n\
+\n\
 # Ensure .ssh directory exists with correct permissions\n\
 mkdir -p /root/.ssh\n\
 chmod 700 /root/.ssh\n\
@@ -34,12 +43,8 @@ else\n\
     echo "[WARN] SSH authentication may not work"\n\
 fi\n\
 \n\
-# Start SSH daemon in background\n\
-echo "[INFO] Starting SSH daemon..."\n\
-/usr/sbin/sshd -D &\n\
-\n\
-echo "[INFO] Container ready"\n\
-exec "$@"' > /entrypoint.sh && chmod +x /entrypoint.sh
+echo "[INFO] Container ready, starting SSHD..."\n\
+exec /usr/sbin/sshd -D -e' > /entrypoint.sh && chmod +x /entrypoint.sh
 
 ENV JAX_COMPILATION_CACHE_DIR=/tmp/jit_cache
 ENV PYTHONUNBUFFERED=1
