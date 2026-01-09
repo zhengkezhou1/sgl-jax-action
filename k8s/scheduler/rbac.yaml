@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: sgl-middleware-sa
+  name: sgl-scheduler-sa
   namespace: default
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: sgl-middleware-role
+  name: sgl-scheduler-role
 rules:
 - apiGroups: [""]
   resources: ["pods", "services", "configmaps"]
@@ -19,12 +19,12 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: sgl-middleware-binding
+  name: sgl-scheduler-binding
 subjects:
 - kind: ServiceAccount
-  name: sgl-middleware-sa
+  name: sgl-scheduler-sa
   namespace: default
 roleRef:
   kind: ClusterRole
-  name: sgl-middleware-role
+  name: sgl-scheduler-role
   apiGroup: rbac.authorization.k8s.io

@@ -1,14 +1,14 @@
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
-  name: sgl-middleware-stack
+  name: sgl-scheduler-stack
   namespace: argocd
 spec:
   project: default
   source:
     repoURL: 'https://github.com/zhengkezhou1/sgl-jax-action.git'
     targetRevision: HEAD
-    path: k8s/middleware
+    path: k8s/scheduler
   destination:
     server: 'https://kubernetes.default.svc'
     namespace: default

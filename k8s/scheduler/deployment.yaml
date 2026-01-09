@@ -1,22 +1,22 @@
 apiVersion: apps/v1
 kind: Deployment
 metadata:
-  name: sgl-middleware
+  name: sgl-scheduler
   namespace: default
 spec:
   replicas: 1
   selector:
     matchLabels:
-      app: sgl-middleware
+      app: sgl-scheduler
   template:
     metadata:
       labels:
-        app: sgl-middleware
+        app: sgl-scheduler
     spec:
-      serviceAccountName: sgl-middleware-sa
+      serviceAccountName: sgl-scheduler-sa
       containers:
-      - name: middleware
-        image: ghcr.io/zhengkezhou1/sgl-jax-action/middleware:sha-cf6a36c
+      - name: scheduler
+        image: ghcr.io/zhengkezhou1/sgl-jax-action/scheduler:sha-cf6a36c
         imagePullPolicy: Always
         ports:
         - containerPort: 8080

@@ -24,7 +24,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       workload: ${{ steps.filter.outputs.workload }}
-      middleware: ${{ steps.filter.outputs.middleware }}
+      scheduler: ${{ steps.filter.outputs.scheduler }}
     steps:
       - uses: actions/checkout@v4
       - uses: dorny/paths-filter@v3
@@ -33,7 +33,7 @@ jobs:
           filters: |
             workload:
               - 'devcontainer/**'
-            middleware:
+            scheduler:
               - 'go/**'
 
   build-workload:
@@ -81,6 +81,9 @@ jobs:
           
           echo "Updating go/main.go with tag: $NEW_TAG"
           
+          # Pull latest changes to avoid conflict
+          git pull --rebase origin main
+          
           # Replace PLACEHOLDER or any existing sha- tag with the new one
           sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}\",|" go/main.go
           
@@ -91,9 +94,9 @@ jobs:
           git commit -m "chore(ci): update tpu dev-container image tag to ${NEW_TAG} [skip ci]" || echo "No changes to commit"
           git push
 
-  build-middleware:
+  build-scheduler:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.middleware == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.scheduler == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write # Required to commit manifest changes
@@ -113,7 +116,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/middleware
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/scheduler
           tags: |
             type=sha,prefix=sha-
             type=ref,event=branch
@@ -137,14 +140,17 @@ jobs:
           
           echo "Updating deployment.yaml with tag: $NEW_TAG"
           
+          # Pull latest changes to avoid conflict
+          git pull --rebase origin main
+          
           # Update the image tag in deployment.yaml
-          sed -i "s|image: ghcr.io/.*/middleware:.*|image: ghcr.io/${{ env.IMAGE_NAME }}/middleware:${NEW_TAG}|" k8s/middleware/deployment.yaml
+          sed -i "s|image: ghcr.io/.*/scheduler:.*|image: ghcr.io/${{ env.IMAGE_NAME }}/scheduler:${NEW_TAG}|" k8s/scheduler/deployment.yaml
           
           # Configure git
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
           # Commit and push
-          git add k8s/middleware/deployment.yaml
-          git commit -m "chore(ci): update middleware image tag to ${NEW_TAG} [skip ci]"
+          git add k8s/scheduler/deployment.yaml
+          git commit -m "chore(ci): update scheduler image tag to ${NEW_TAG} [skip ci]"
           git push
