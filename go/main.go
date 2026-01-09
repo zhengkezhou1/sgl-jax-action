@@ -225,18 +225,18 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 						},
 						Containers: []corev1.Container{
 							{
-								Name:            "sgl-jax",
-								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action:latest",
+								Name:            "dev-container-tpu",
+								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action/dev-container-tpu:PLACEHOLDER",
 								SecurityContext: &corev1.SecurityContext{Privileged: boolPtr(true)},
 								Resources: corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
-										corev1.ResourceCPU:    resource.MustParse("2"),
-										corev1.ResourceMemory: resource.MustParse("8Gi"),
+										corev1.ResourceCPU:    resource.MustParse("16"),
+										corev1.ResourceMemory: resource.MustParse("64Gi"),
 										tpuResourceName:       *tpuQty,
 									},
 									Limits: corev1.ResourceList{
-										corev1.ResourceCPU:    resource.MustParse("4"),
-										corev1.ResourceMemory: resource.MustParse("12Gi"),
+										corev1.ResourceCPU:    resource.MustParse("32"),
+										corev1.ResourceMemory: resource.MustParse("64Gi"),
 										tpuResourceName:       *tpuQty,
 									},
 								},

@@ -4,12 +4,12 @@ on:
   push:
     branches: ["main"]
     paths:
-      - "docker/**"
+      - "devcontainer/**"
       - "go/**"
   pull_request:
     branches: ["main"]
     paths:
-      - "docker/**"
+      - "devcontainer/**"
       - "go/**"
   workflow_dispatch:
 
@@ -32,7 +32,7 @@ jobs:
         with:
           filters: |
             workload:
-              - 'docker/**'
+              - 'devcontainer/**'
             middleware:
               - 'go/**'
 
@@ -58,7 +58,7 @@ jobs:
         id: meta
         uses: docker/metadata-action@v5
         with:
-          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/workload
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}/dev-container-tpu
           tags: |
             type=sha,prefix=sha-
             type=ref,event=branch
@@ -68,10 +68,28 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: ./docker/Dockerfile
+          file: ./devcontainer/Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
+
+      - name: Update go/main.go with new tag
+        if: github.event_name != 'pull_request'
+        run: |
+          SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
+          NEW_TAG="sha-${SHORT_SHA}"
+          
+          echo "Updating go/main.go with tag: $NEW_TAG"
+          
+          # Replace PLACEHOLDER or any existing sha- tag with the new one
+          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}",| go/main.go
+          
+          git config --global user.name "GitHub Actions"
+          git config --global user.email "actions@github.com"
+          
+          git add go/main.go
+          git commit -m "chore(ci): update tpu dev-container image tag to ${NEW_TAG} [skip ci]" || echo "No changes to commit"
+          git push
 
   build-middleware:
     needs: detect-changes

@@ -1,10 +1,12 @@
-FROM mirror.gcr.io/library/python:3.12-slim
+FROM mcr.microsoft.com/devcontainers/base:ubuntu
 
 RUN apt-get update && apt-get install -y \
     openssh-server \
-    git \
-    curl \
-    && rm -rf /var/lib/apt/lists/*
+    python3 \
+    python3-pip \
+    python-is-python3 \
+    && rm -rf /var/lib/apt/lists/* \
+    && rm -f /usr/lib/python3.*/EXTERNALLY-MANAGED
 
 RUN sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config \
     && sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/' /etc/ssh/sshd_config \
@@ -46,10 +48,9 @@ fi\n\
 echo "[INFO] Container ready, starting SSHD..."\n\
 exec /usr/sbin/sshd -D -e' > /entrypoint.sh && chmod +x /entrypoint.sh
 
-ENV JAX_COMPILATION_CACHE_DIR=/tmp/jit_cache
 ENV PYTHONUNBUFFERED=1
 
-WORKDIR /workplace/sglang-jax
+WORKDIR /workplace
 EXPOSE 22
 
 ENTRYPOINT ["/entrypoint.sh"]
