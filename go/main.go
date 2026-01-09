@@ -226,7 +226,7 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 						Containers: []corev1.Container{
 							{
 								Name:            "dev-container-tpu",
-								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action/dev-container-tpu:sha-3347920",
+								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action/dev-container-tpu:sha-600456e",
 								SecurityContext: &corev1.SecurityContext{Privileged: boolPtr(true)},
 								Resources: corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
