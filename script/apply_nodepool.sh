@@ -4,7 +4,7 @@ set -e
 
 # 1. Initialize Terraform
 echo "Initializing Terraform for node pool creation..."
-cd ../terraform/nodepool
+cd ./terraform/nodepool
 terraform init
 
 # 2. Apply Terraform configuration

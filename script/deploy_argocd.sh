@@ -40,7 +40,7 @@ echo ""
 ADMIN_PASSWORD=$(kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" | base64 -d)
 
 echo -e "\n${GREEN}================== ArgoCD Ready ==================${NC}"
-echo -e "URL:       https://${LB_IP}"
+echo -e "URL:       http://${LB_IP}"
 echo -e "Username:  admin"
 echo -e "Password:  ${GREEN}${ADMIN_PASSWORD}${NC}"
 echo -e "${GREEN}==================================================${NC}"
