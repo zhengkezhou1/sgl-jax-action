@@ -23,7 +23,7 @@ jobs:
   detect-changes:
     runs-on: ubuntu-latest
     outputs:
-      workload: ${{ steps.filter.outputs.workload }}
+      devcontainer: ${{ steps.filter.outputs.devcontainer }}
       scheduler: ${{ steps.filter.outputs.scheduler }}
     steps:
       - uses: actions/checkout@v4
@@ -31,14 +31,14 @@ jobs:
         id: filter
         with:
           filters: |
-            workload:
+            devcontainer:
               - 'devcontainer/**'
             scheduler:
               - 'go/**'
 
-  build-workload:
+  build-devcontainer:
     needs: detect-changes
-    if: ${{ needs.detect-changes.outputs.workload == 'true' || github.event_name == 'workflow_dispatch' }}
+    if: ${{ needs.detect-changes.outputs.devcontainer == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -91,7 +91,7 @@ jobs:
           git config --global user.email "actions@github.com"
           
           git add go/main.go
-          git commit -m "chore(ci): update tpu dev-container image tag to ${NEW_TAG} [skip ci]" || echo "No changes to commit"
+          git commit -m "chore(ci): update tpu dev-container image tag to ${NEW_TAG}" || echo "No changes to commit"
           git push
 
   build-scheduler:
