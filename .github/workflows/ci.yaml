@@ -3,14 +3,8 @@ name: Build and Push Docker Images
 on:
   push:
     branches: ["main"]
-    paths:
-      - "devcontainer/**"
-      - "go/**"
   pull_request:
     branches: ["main"]
-    paths:
-      - "devcontainer/**"
-      - "go/**"
   workflow_dispatch:
 
 env:
