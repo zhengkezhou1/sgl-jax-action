@@ -41,7 +41,7 @@ jobs:
     if: ${{ needs.detect-changes.outputs.workload == 'true' || github.event_name == 'workflow_dispatch' }}
     runs-on: ubuntu-latest
     permissions:
-      contents: read
+      contents: write
       packages: write
     steps:
       - name: Checkout repository
@@ -82,7 +82,7 @@ jobs:
           echo "Updating go/main.go with tag: $NEW_TAG"
           
           # Replace PLACEHOLDER or any existing sha- tag with the new one
-          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}",| go/main.go
+          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}\",|" go/main.go
           
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
