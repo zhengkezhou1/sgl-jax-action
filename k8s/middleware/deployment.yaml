@@ -16,7 +16,7 @@ spec:
       serviceAccountName: sgl-middleware-sa
       containers:
       - name: middleware
-        image: ghcr.io/zhengkezhou1/sgl-jax-action/middleware:sha-59aa226
+        image: ghcr.io/zhengkezhou1/sgl-jax-action/middleware:sha-cf6a36c
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
