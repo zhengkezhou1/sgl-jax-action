@@ -1,4 +1,4 @@
-package main
+package scheduler
 
 import (
 	"context"
@@ -14,7 +14,6 @@ import (
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
 )
 
 // JobRequest defines the payload for submitting a TPU job
@@ -26,38 +25,8 @@ type JobRequest struct {
 	TPUCount    int64  `json:"tpu_count"`    // e.g., 1
 }
 
-func main() {
-	// 1. Initialize Kubernetes In-Cluster Client
-	config, err := rest.InClusterConfig()
-	if err != nil {
-		log.Fatalf("Failed to get in-cluster config: %v", err)
-	}
-
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		log.Fatalf("Failed to create clientset: %v", err)
-	}
-
-	// 2. Register Routes
-	http.HandleFunc("/healthz", func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("ok"))
-	})
-
-	http.HandleFunc("/api/pods", handleListPods(clientset))
-	http.HandleFunc("/api/jobs", handleSubmitJob(clientset))
-	http.HandleFunc("/api/jobs/status", handleGetJobStatus(clientset))
-
-	// 3. Start HTTP Server
-	port := "8080"
-	log.Printf("Starting middleware server on port %s", port)
-	if err := http.ListenAndServe(":"+port, nil); err != nil {
-		log.Fatalf("Server failed: %v", err)
-	}
-}
-
-// handleListPods returns a list of pod names in the default namespace
-func handleListPods(clientset *kubernetes.Clientset) http.HandlerFunc {
+// HandleListPods returns a list of pod names in the default namespace
+func HandleListPods(clientset *kubernetes.Clientset) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -76,8 +45,8 @@ func handleListPods(clientset *kubernetes.Clientset) http.HandlerFunc {
 	}
 }
 
-// handleGetJobStatus retrieves the IP and runtime status of a TPU job
-func handleGetJobStatus(clientset *kubernetes.Clientset) http.HandlerFunc {
+// HandleGetJobStatus retrieves the IP and runtime status of a TPU job
+func HandleGetJobStatus(clientset *kubernetes.Clientset) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -141,8 +110,8 @@ func handleGetJobStatus(clientset *kubernetes.Clientset) http.HandlerFunc {
 	}
 }
 
-// handleSubmitJob orchestrates the creation of TPU workload resources
-func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
+// HandleSubmitJob orchestrates the creation of TPU workload resources
+func HandleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -184,7 +153,7 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 			ObjectMeta: metav1.ObjectMeta{Name: cmName, Labels: labels},
 			Data:       map[string]string{"authorized_keys": req.SSHPubKey},
 		}
-		if err := ensureConfigMap(ctx, clientset, namespace, configMap); err != nil {
+		if err := EnsureConfigMap(ctx, clientset, namespace, configMap); err != nil {
 			log.Printf("Failed to ensure ConfigMap: %v", err)
 			http.Error(w, fmt.Sprintf("ConfigMap error: %v", err), http.StatusInternalServerError)
 			return
@@ -200,7 +169,7 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 				Ports:    []corev1.ServicePort{{Name: "ssh", Port: 22, TargetPort: intstr.FromInt(22), Protocol: corev1.ProtocolTCP}},
 			},
 		}
-		if err := ensureService(ctx, clientset, namespace, service); err != nil {
+		if err := EnsureService(ctx, clientset, namespace, service); err != nil {
 			log.Printf("Failed to ensure Service: %v", err)
 			http.Error(w, fmt.Sprintf("Service error: %v", err), http.StatusInternalServerError)
 			return
@@ -214,7 +183,7 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 		deployment := &appsv1.Deployment{
 			ObjectMeta: metav1.ObjectMeta{Name: deployName, Labels: labels},
 			Spec: appsv1.DeploymentSpec{
-				Replicas: int32Ptr(1),
+				Replicas: Int32Ptr(1),
 				Selector: &metav1.LabelSelector{MatchLabels: labels},
 				Template: corev1.PodTemplateSpec{
 					ObjectMeta: metav1.ObjectMeta{Labels: labels},
@@ -227,7 +196,7 @@ func handleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 							{
 								Name:            "dev-container-tpu",
 								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action/dev-container-tpu:sha-600456e",
-								SecurityContext: &corev1.SecurityContext{Privileged: boolPtr(true)},
+								SecurityContext: &corev1.SecurityContext{Privileged: BoolPtr(true)},
 								Resources: corev1.ResourceRequirements{
 									Requests: corev1.ResourceList{
 										corev1.ResourceCPU:    resource.MustParse("16"),
@@ -288,7 +257,7 @@ fi
 								VolumeSource: corev1.VolumeSource{
 									ConfigMap: &corev1.ConfigMapVolumeSource{
 										LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-										DefaultMode:          int32Ptr(0644),
+										DefaultMode:          Int32Ptr(0644),
 									},
 								},
 							},
@@ -297,7 +266,7 @@ fi
 				},
 			},
 		}
-		if err := ensureDeployment(ctx, clientset, namespace, deployment); err != nil {
+		if err := EnsureDeployment(ctx, clientset, namespace, deployment); err != nil {
 			log.Printf("Failed to ensure Deployment: %v", err)
 			http.Error(w, fmt.Sprintf("Deployment error: %v", err), http.StatusInternalServerError)
 			return
@@ -314,8 +283,8 @@ fi
 	}
 }
 
-// ensureConfigMap creates or updates the ConfigMap idempotently
-func ensureConfigMap(ctx context.Context, client *kubernetes.Clientset, ns string, cm *corev1.ConfigMap) error {
+// EnsureConfigMap creates or updates the ConfigMap idempotently
+func EnsureConfigMap(ctx context.Context, client *kubernetes.Clientset, ns string, cm *corev1.ConfigMap) error {
 	_, err := client.CoreV1().ConfigMaps(ns).Create(ctx, cm, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
 		_, err = client.CoreV1().ConfigMaps(ns).Update(ctx, cm, metav1.UpdateOptions{})
@@ -323,8 +292,8 @@ func ensureConfigMap(ctx context.Context, client *kubernetes.Clientset, ns strin
 	return err
 }
 
-// ensureService creates the Service if it doesn't exist
-func ensureService(ctx context.Context, client *kubernetes.Clientset, ns string, svc *corev1.Service) error {
+// EnsureService creates the Service if it doesn't exist
+func EnsureService(ctx context.Context, client *kubernetes.Clientset, ns string, svc *corev1.Service) error {
 	_, err := client.CoreV1().Services(ns).Create(ctx, svc, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
 		return nil // Service updates are complex, skip if exists
@@ -332,8 +301,8 @@ func ensureService(ctx context.Context, client *kubernetes.Clientset, ns string,
 	return err
 }
 
-// ensureDeployment creates or updates the Deployment idempotently
-func ensureDeployment(ctx context.Context, client *kubernetes.Clientset, ns string, d *appsv1.Deployment) error {
+// EnsureDeployment creates or updates the Deployment idempotently
+func EnsureDeployment(ctx context.Context, client *kubernetes.Clientset, ns string, d *appsv1.Deployment) error {
 	_, err := client.AppsV1().Deployments(ns).Create(ctx, d, metav1.CreateOptions{})
 	if errors.IsAlreadyExists(err) {
 		_, err = client.AppsV1().Deployments(ns).Update(ctx, d, metav1.UpdateOptions{})
@@ -341,5 +310,5 @@ func ensureDeployment(ctx context.Context, client *kubernetes.Clientset, ns stri
 	return err
 }
 
-func int32Ptr(i int32) *int32 { return &i }
-func boolPtr(b bool) *bool    { return &b }
+func Int32Ptr(i int32) *int32 { return &i }
+func BoolPtr(b bool) *bool    { return &b }

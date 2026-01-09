@@ -11,8 +11,8 @@ RUN go mod download
 COPY . .
 
 # Build the application
-# -o /app/server: output binary name
-RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server .
+# -o /bin/server: output binary name
+RUN CGO_ENABLED=0 GOOS=linux go build -o /bin/server ./cmd/scheduler-server/main.go
 
 # Final stage
 FROM debian:bookworm-slim

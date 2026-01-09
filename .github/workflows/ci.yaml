@@ -28,7 +28,11 @@ jobs:
             devcontainer:
               - 'devcontainer/**'
             scheduler:
-              - 'go/**'
+              - 'cmd/**'
+              - 'internal/**'
+              - 'go.mod'
+              - 'go.sum'
+              - 'Dockerfile'
 
   build-devcontainer:
     needs: detect-changes
@@ -67,24 +71,24 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Update go/main.go with new tag
+      - name: Update internal/scheduler/scheduler.go with new tag
         if: github.event_name != 'pull_request'
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           NEW_TAG="sha-${SHORT_SHA}"
           
-          echo "Updating go/main.go with tag: $NEW_TAG"
+          echo "Updating internal/scheduler/scheduler.go with tag: $NEW_TAG"
           
           # Pull latest changes to avoid conflict
           git pull --rebase origin main
           
           # Replace PLACEHOLDER or any existing sha- tag with the new one
-          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}\",|" go/main.go
+          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}\",|" internal/scheduler/scheduler.go
           
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          git add go/main.go
+          git add internal/scheduler/scheduler.go
           git commit -m "chore(ci): update tpu dev-container image tag to ${NEW_TAG}" || echo "No changes to commit"
           git push
 
@@ -119,8 +123,8 @@ jobs:
       - name: Build and push Docker image
         uses: docker/build-push-action@v5
         with:
-          context: ./go
-          file: ./go/Dockerfile
+          context: .
+          file: ./Dockerfile
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
