@@ -16,7 +16,7 @@ spec:
       serviceAccountName: sgl-scheduler-sa
       containers:
       - name: scheduler
-        image: ghcr.io/zhengkezhou1/sgl-jax-action/scheduler:sha-69c1d59
+        image: ghcr.io/zhengkezhou1/sgl-jax-action/scheduler:sha-f852acc
         imagePullPolicy: Always
         ports:
         - containerPort: 8080
