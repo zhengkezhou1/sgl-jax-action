@@ -71,24 +71,24 @@ jobs:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
 
-      - name: Update internal/scheduler/scheduler.go with new tag
+      - name: Update config/templates/dev-container-tpu/deployment.yaml with new tag
         if: github.event_name != 'pull_request'
         run: |
           SHORT_SHA=$(echo "${{ github.sha }}" | cut -c1-7)
           NEW_TAG="sha-${SHORT_SHA}"
           
-          echo "Updating internal/scheduler/scheduler.go with tag: $NEW_TAG"
+          echo "Updating config/templates/dev-container-tpu/deployment.yaml with tag: $NEW_TAG"
           
           # Pull latest changes to avoid conflict
           git pull --rebase origin main
           
           # Replace PLACEHOLDER or any existing sha- tag with the new one
-          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}\",|" internal/scheduler/scheduler.go
+          sed -i "s|dev-container-tpu:.*|dev-container-tpu:${NEW_TAG}|" config/templates/dev-container-tpu/deployment.yaml
           
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
           
-          git add internal/scheduler/scheduler.go
+          git add config/templates/dev-container-tpu/deployment.yaml
           git commit -m "chore(ci): update tpu dev-container image tag to ${NEW_TAG}" || echo "No changes to commit"
           git push
 

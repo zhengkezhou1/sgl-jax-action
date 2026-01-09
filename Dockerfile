@@ -22,6 +22,7 @@ RUN apt-get update && apt-get install -y ca-certificates && rm -rf /var/lib/apt/
 
 # Copy binary from builder
 COPY --from=builder /bin/server /server
+COPY --from=builder /src/config/templates /config/templates
 
 EXPOSE 8080
 

@@ -1,19 +1,22 @@
 package scheduler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"text/template"
 
 	appsv1 "k8s.io/api/apps/v1"
 	corev1 "k8s.io/api/core/v1"
 	"k8s.io/apimachinery/pkg/api/errors"
-	"k8s.io/apimachinery/pkg/api/resource"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/util/intstr"
 	"k8s.io/client-go/kubernetes"
+	"sigs.k8s.io/yaml"
 )
 
 // JobRequest defines the payload for submitting a TPU job
@@ -145,128 +148,41 @@ func HandleSubmitJob(clientset *kubernetes.Clientset) http.HandlerFunc {
 
 		ctx := context.Background()
 		namespace := "default"
-		labels := map[string]string{"app": "sgl-tpu", "developer": req.UserName}
 
 		// 1. Ensure ConfigMap for SSH Keys exists
-		cmName := fmt.Sprintf("sgl-ssh-key-%s", req.UserName)
-		configMap := &corev1.ConfigMap{
-			ObjectMeta: metav1.ObjectMeta{Name: cmName, Labels: labels},
-			Data:       map[string]string{"authorized_keys": req.SSHPubKey},
+		var configMap corev1.ConfigMap
+		if err := loadResourceFromTemplate("config/templates/dev-container-tpu/configmap.yaml", req, &configMap); err != nil {
+			log.Printf("Failed to load ConfigMap template: %v", err)
+			http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
+			return
 		}
-		if err := EnsureConfigMap(ctx, clientset, namespace, configMap); err != nil {
+		if err := EnsureConfigMap(ctx, clientset, namespace, &configMap); err != nil {
 			log.Printf("Failed to ensure ConfigMap: %v", err)
 			http.Error(w, fmt.Sprintf("ConfigMap error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// 2. Ensure Service for SSH access exists
-		svcName := fmt.Sprintf("sgl-svc-%s", req.UserName)
-		service := &corev1.Service{
-			ObjectMeta: metav1.ObjectMeta{Name: svcName, Labels: labels},
-			Spec: corev1.ServiceSpec{
-				Selector: labels,
-				Type:     corev1.ServiceTypeLoadBalancer,
-				Ports:    []corev1.ServicePort{{Name: "ssh", Port: 22, TargetPort: intstr.FromInt(22), Protocol: corev1.ProtocolTCP}},
-			},
+		var service corev1.Service
+		if err := loadResourceFromTemplate("config/templates/dev-container-tpu/service.yaml", req, &service); err != nil {
+			log.Printf("Failed to load Service template: %v", err)
+			http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
+			return
 		}
-		if err := EnsureService(ctx, clientset, namespace, service); err != nil {
+		if err := EnsureService(ctx, clientset, namespace, &service); err != nil {
 			log.Printf("Failed to ensure Service: %v", err)
 			http.Error(w, fmt.Sprintf("Service error: %v", err), http.StatusInternalServerError)
 			return
 		}
 
 		// 3. Ensure Deployment for TPU Workload exists
-		deployName := fmt.Sprintf("sgl-tpu-%s", req.UserName)
-		tpuResourceName := corev1.ResourceName("google.com/tpu")
-		tpuQty := resource.NewQuantity(req.TPUCount, resource.DecimalSI)
-
-		deployment := &appsv1.Deployment{
-			ObjectMeta: metav1.ObjectMeta{Name: deployName, Labels: labels},
-			Spec: appsv1.DeploymentSpec{
-				Replicas: Int32Ptr(1),
-				Selector: &metav1.LabelSelector{MatchLabels: labels},
-				Template: corev1.PodTemplateSpec{
-					ObjectMeta: metav1.ObjectMeta{Labels: labels},
-					Spec: corev1.PodSpec{
-						NodeSelector: map[string]string{
-							"cloud.google.com/gke-tpu-accelerator": req.TPUType,
-							"cloud.google.com/gke-tpu-topology":    req.TPUTopology,
-						},
-						Containers: []corev1.Container{
-							{
-								Name:            "dev-container-tpu",
-								Image:           "ghcr.io/zhengkezhou1/sgl-jax-action/dev-container-tpu:sha-600456e",
-								SecurityContext: &corev1.SecurityContext{Privileged: BoolPtr(true)},
-								Resources: corev1.ResourceRequirements{
-									Requests: corev1.ResourceList{
-										corev1.ResourceCPU:    resource.MustParse("16"),
-										corev1.ResourceMemory: resource.MustParse("64Gi"),
-										tpuResourceName:       *tpuQty,
-									},
-									Limits: corev1.ResourceList{
-										corev1.ResourceCPU:    resource.MustParse("32"),
-										corev1.ResourceMemory: resource.MustParse("64Gi"),
-										tpuResourceName:       *tpuQty,
-									},
-								},
-								Ports: []corev1.ContainerPort{{Name: "ssh", ContainerPort: 22}},
-								Lifecycle: &corev1.Lifecycle{
-									PostStart: &corev1.LifecycleHandler{
-										Exec: &corev1.ExecAction{
-											Command: []string{
-												"/bin/bash",
-												"-c",
-												`
-cat > /etc/profile.d/tpu-env.sh << TPUEOF
-# TPU Environment Variables (auto-generated from container env)
-export TPU_ACCELERATOR_TYPE="${TPU_ACCELERATOR_TYPE}"
-export TPU_CHIPS_PER_HOST_BOUNDS="${TPU_CHIPS_PER_HOST_BOUNDS}"
-export TPU_HOST_BOUNDS="${TPU_HOST_BOUNDS}"
-export TPU_RUNTIME_METRICS_PORTS="${TPU_RUNTIME_METRICS_PORTS}"
-export TPU_SKIP_MDS_QUERY="${TPU_SKIP_MDS_QUERY}"
-export TPU_TOPOLOGY_ALT="${TPU_TOPOLOGY_ALT}"
-export TPU_TOPOLOGY_WRAP="${TPU_TOPOLOGY_WRAP}"
-export TPU_TOPOLOGY="${TPU_TOPOLOGY}"
-export TPU_WORKER_HOSTNAMES="${TPU_WORKER_HOSTNAMES}"
-export TPU_WORKER_ID="${TPU_WORKER_ID}"
-export VBAR_CONTROL_SERVICE_URL="${VBAR_CONTROL_SERVICE_URL}"
-export JAX_COMPILATION_CACHE_DIR="${JAX_COMPILATION_CACHE_DIR:-/tmp/jit_cache}"
-TPUEOF
-
-# Auto-load TPU environment for all login shells
-if ! grep -q 'source /etc/profile.d/tpu-env.sh' /root/.bashrc 2>/dev/null; then
-  echo '# Auto-load TPU environment variables' >> /root/.bashrc
-  echo 'source /etc/profile.d/tpu-env.sh' >> /root/.bashrc
-fi
-`,
-											},
-										},
-									},
-								},
-								LivenessProbe: &corev1.Probe{
-									ProbeHandler:        corev1.ProbeHandler{TCPSocket: &corev1.TCPSocketAction{Port: intstr.FromInt(22)}},
-									InitialDelaySeconds: 30,
-									PeriodSeconds:       10,
-								},
-								VolumeMounts: []corev1.VolumeMount{{Name: "ssh-key", MountPath: "/tmp/ssh-keys", ReadOnly: true}},
-							},
-						},
-						Volumes: []corev1.Volume{
-							{
-								Name: "ssh-key",
-								VolumeSource: corev1.VolumeSource{
-									ConfigMap: &corev1.ConfigMapVolumeSource{
-										LocalObjectReference: corev1.LocalObjectReference{Name: cmName},
-										DefaultMode:          Int32Ptr(0644),
-									},
-								},
-							},
-						},
-					},
-				},
-			},
+		var deployment appsv1.Deployment
+		if err := loadResourceFromTemplate("config/templates/dev-container-tpu/deployment.yaml", req, &deployment); err != nil {
+			log.Printf("Failed to load Deployment template: %v", err)
+			http.Error(w, fmt.Sprintf("Template error: %v", err), http.StatusInternalServerError)
+			return
 		}
-		if err := EnsureDeployment(ctx, clientset, namespace, deployment); err != nil {
+		if err := EnsureDeployment(ctx, clientset, namespace, &deployment); err != nil {
 			log.Printf("Failed to ensure Deployment: %v", err)
 			http.Error(w, fmt.Sprintf("Deployment error: %v", err), http.StatusInternalServerError)
 			return
@@ -281,6 +197,29 @@ fi
 			"message":   "Job resources created. Poll the check_url for external IP.",
 		})
 	}
+}
+
+// loadResourceFromTemplate reads a template file, executes it with data, and unmarshals the result into out.
+func loadResourceFromTemplate(path string, data interface{}, out interface{}) error {
+	tmplContent, err := os.ReadFile(path)
+	if err != nil {
+		return fmt.Errorf("failed to read template %s: %w", path, err)
+	}
+
+	tmpl, err := template.New(filepath.Base(path)).Parse(string(tmplContent))
+	if err != nil {
+		return fmt.Errorf("failed to parse template %s: %w", path, err)
+	}
+
+	var buf bytes.Buffer
+	if err := tmpl.Execute(&buf, data); err != nil {
+		return fmt.Errorf("failed to execute template %s: %w", path, err)
+	}
+
+	if err := yaml.Unmarshal(buf.Bytes(), out); err != nil {
+		return fmt.Errorf("failed to unmarshal resource from %s: %w", path, err)
+	}
+	return nil
 }
 
 // EnsureConfigMap creates or updates the ConfigMap idempotently
@@ -309,6 +248,3 @@ func EnsureDeployment(ctx context.Context, client *kubernetes.Clientset, ns stri
 	}
 	return err
 }
-
-func Int32Ptr(i int32) *int32 { return &i }
-func BoolPtr(b bool) *bool    { return &b }
