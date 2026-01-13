@@ -2,3 +2,42 @@ num_nodes: 4
 
 resources:
   cloud: kubernetes
+
+setup: |
+  cd /root
+
+  if [ ! -d "sglang-jax" ]; then
+    git clone https://github.com/sgl-project/sglang-jax.git
+  fi
+
+  cd sglang-jax
+  /root/.local/bin/uv venv --python 3.12
+  . .venv/bin/activate
+  /root/.local/bin/uv pip install -e "python[tpu]"
+
+run: |
+  cd /root/sglang-jax
+  . .venv/bin/activate
+
+  HEAD_IP=$(echo $SKYPILOT_NODE_IPS | awk '{print $1}')
+
+  echo "Starting SGL-JAX on Node Rank: $SKYPILOT_NODE_RANK"
+  echo "Head Node IP: $HEAD_IP"
+
+  export JAX_COMPILATION_CACHE_DIR=/tmp/jit_cache
+
+  python -u -m sgl_jax.launch_server \
+    --model-path Qwen/Qwen-7B-Chat \
+    --trust-remote-code \
+    --host 0.0.0.0 \
+    --dist-init-addr=${HEAD_IP}:10011 \
+    --nnodes=4 \
+    --tp-size=4 \
+    --device=tpu \
+    --random-seed=3 \
+    --node-rank=$SKYPILOT_NODE_RANK \
+    --mem-fraction-static=0.8 \
+    --max-prefill-tokens=8192 \
+    --download-dir=/tmp \
+    --dtype=bfloat16 \
+    --skip-server-warmup
