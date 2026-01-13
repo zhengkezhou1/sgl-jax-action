@@ -38,7 +38,7 @@ variable "pool_name" {
 variable "cpu_machine_type" {
   description = "Machine type for CPU nodes (system components)"
   type        = string
-  default     = "e2-medium"
+  default     = "e2-standard-4"
 }
 
 variable "cpu_node_count" {
@@ -56,12 +56,12 @@ variable "cpu_min_nodes" {
 variable "cpu_max_nodes" {
   description = "Maximum number of CPU nodes in autoscaling"
   type        = number
-  default     = 3
+  default     = 2
 }
 
 # TPU node pool variables
 variable "tpu_node_count" {
   description = "Number of TPU nodes"
   type        = number
-  default     = 3
+  default     = 2
 }
