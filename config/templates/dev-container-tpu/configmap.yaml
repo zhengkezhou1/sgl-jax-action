@@ -1,9 +1,0 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: sgl-ssh-key-{{.UserName}}
-  labels:
-    app: sgl-tpu
-    developer: "{{.UserName}}"
-data:
-  authorized_keys: {{.SSHPubKey}}
