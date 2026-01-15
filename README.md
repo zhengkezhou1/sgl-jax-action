@@ -1,13 +1,7 @@
-`/terraform/autopilot-cluster`
 ```zsh
 terraform init
 
 terraform apply
-```
-
-更新 kubeconfig 凭证
-```zsh
-gcloud container clusters get-credentials skypilot-standard-tpu --region asia-northeast1 --project tpu-service-473302
 ```
 
 使用 当前目录下的 config.yaml 覆盖 `~/.skypilot/config.yaml` 内容

@@ -35,6 +35,14 @@ resource "google_container_cluster" "primary" {
   remove_default_node_pool = true
 }
 
+resource "null_resource" "configure_kubectl" {
+  provisioner "local-exec" {
+    command = "gcloud container clusters get-credentials ${google_container_cluster.primary.name} --region ${var.region} --project ${var.project_id} && kubectl config set-context --current --namespace=default"
+  }
+
+  depends_on = [google_container_cluster.primary]
+}
+
 output "cluster_name" {
   value = google_container_cluster.primary.name
 }
