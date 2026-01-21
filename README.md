@@ -1,6 +1,8 @@
 ```zsh
-terraform init
+cd ./terraform/standard/cluster 
+terraform apply
 
+cd ./terraform/standard/nodepool 
 terraform apply
 ```
 
@@ -8,7 +10,7 @@ terraform apply
 ```zsh
 cp ./skypilot/config.yaml ~/.sky
 ```
-
+gcloud container clusters get-credentials dev-pathway-tpu-resources --region asia-northeast1-b --project tpu-service-473302
 ```zsh
 sky launch -r ./skypilot/tpu-v6e.yaml
 ```

@@ -9,11 +9,11 @@ data "google_container_cluster" "primary" {
   project  = var.project_id
 }
 
-# TPU node pool for workloads
-resource "google_container_node_pool" "tpu_node_pool" {
+# default(2x2) TPU node pool for workloads
+resource "google_container_node_pool" "single_host_tpu_node_pool" {
   project        = var.project_id
   cluster        = data.google_container_cluster.primary.name
-  name           = var.pool_name
+  name           = "single-host-resources"
   location       = data.google_container_cluster.primary.location
   node_locations = var.node_locations
   node_count     = var.tpu_node_count
@@ -26,6 +26,31 @@ resource "google_container_node_pool" "tpu_node_pool" {
   autoscaling {
     min_node_count = var.min_node_count
     max_node_count = var.max_node_count
+  }
+}
+
+# (2x4) TPU node pool for workloads
+resource "google_container_node_pool" "multi_host_tpu_node_pool" {
+  project        = var.project_id
+  cluster        = data.google_container_cluster.primary.name
+  name           = "multi-host-resources"
+  location       = data.google_container_cluster.primary.location
+  node_locations = var.node_locations
+  # node_count omitted - autoscaling will manage (valid values: 0 or 2 for 2x4 topology)
+
+  node_config {
+    machine_type = "ct6e-standard-4t"
+    spot         = false
+  }
+
+  placement_policy {
+    type         = "COMPACT"
+    tpu_topology = "2x4"
+  }
+
+  autoscaling {
+    min_node_count = 0
+    max_node_count = 2
   }
 }
 

@@ -57,5 +57,5 @@ variable "max_node_count" {
 variable "cpu_machine_type" {
   description = "Machine type for CPU nodes (system components)"
   type        = string
-  default     = "e2-standard-4"
+  default     = "e2-highmem-8"
 }
