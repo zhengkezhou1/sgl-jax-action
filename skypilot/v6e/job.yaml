@@ -1,0 +1,4 @@
+num_nodes: 1
+
+resources:
+  cloud: kubernetes

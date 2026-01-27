@@ -1,43 +1,53 @@
-num_nodes: 4
+name: maxtext-tpu-train
 
 resources:
   cloud: kubernetes
 
+# 同步本地代码到远程
+file_mounts:
+  /workspace/maxtext:
+    source: .
+    mode: COPY
+
+# 环境变量
+envs:
+  OUTPUT_PATH: gs://your-bucket/output
+  DATASET_PATH: gs://your-bucket/dataset
+  RUN_NAME: maxtext-tpu-v6e-run
+
+# 节点数量（对应 TPU slice 中的 worker 数量）
+# 4x8 topology = 32 chips, 每个 pod 4 chips = 8 个 worker
+num_nodes: 8
+
 setup: |
-  cd /root
+  cd /workspace/maxtext
 
-  if [ ! -d "sglang-jax" ]; then
-    git clone https://github.com/sgl-project/sglang-jax.git
-  fi
+  # 安装 MaxText
+  pip install -e . --quiet
 
-  cd sglang-jax
-  /root/.local/bin/uv venv --python 3.12
-  . .venv/bin/activate
-  /root/.local/bin/uv pip install -e "python[tpu]"
+  # TPU 特定依赖（如果镜像中没有预装）
+  pip install -r dependencies/requirements/generated_requirements/tpu-requirements.txt --quiet || true
+
+  # 验证 JAX 和 TPU
+  python3 -c "
+  import jax
+  print(f'JAX version: {jax.__version__}')
+  print(f'Devices: {jax.devices()}')
+  print(f'Device count: {jax.device_count()}')
+  "
 
 run: |
-  cd /root/sglang-jax
-  . .venv/bin/activate
+  cd /workspace/maxtext
 
-  HEAD_IP=$(echo $SKYPILOT_NODE_IPS | awk '{print $1}')
-
-  echo "Starting SGL-JAX on Node Rank: $SKYPILOT_NODE_RANK"
-  echo "Head Node IP: $HEAD_IP"
-
-  export JAX_COMPILATION_CACHE_DIR=/tmp/jit_cache
-
-  python -u -m sgl_jax.launch_server \
-    --model-path Qwen/Qwen-7B-Chat \
-    --trust-remote-code \
-    --host 0.0.0.0 \
-    --dist-init-addr=${HEAD_IP}:10011 \
-    --nnodes=4 \
-    --tp-size=4 \
-    --device=tpu \
-    --random-seed=3 \
-    --node-rank=$SKYPILOT_NODE_RANK \
-    --mem-fraction-static=0.8 \
-    --max-prefill-tokens=8192 \
-    --download-dir=/tmp \
-    --dtype=bfloat16 \
-    --skip-server-warmup
+  # 多主机 TPU 训练
+  python3 -m MaxText.train \
+    src/MaxText/configs/base.yml \
+    model_name='llama2-7b' \
+    base_output_directory=${OUTPUT_PATH} \
+    dataset_path=${DATASET_PATH} \
+    run_name=${RUN_NAME} \
+    per_device_batch_size=4.0 \
+    steps=100 \
+    enable_checkpointing=true \
+    checkpoint_period=500 \
+    log_period=50
