@@ -1,0 +1,14 @@
+num_nodes: 1
+
+resources:
+  cloud: kubernetes
+setup: |
+  git clone https://github.com/google/maxtext.git ~/maxtext
+  conda init bash
+  conda create -n maxtext -c conda-forge python=3.12 -y
+  conda activate maxtext
+
+run: |
+  cd ~/maxtext
+  conda activate maxtext
+  bash tools/setup/setup.sh DEVICE=tpu
