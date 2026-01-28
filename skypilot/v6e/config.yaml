@@ -14,11 +14,11 @@ kubernetes:
           resources:
             requests:
               cpu: "12"
-              memory: "32Gi"    
+              memory: "100Gi"    
               google.com/tpu: 4
             limits:
               cpu: "12"
-              memory: "32Gi"
+              memory: "100Gi"
               google.com/tpu: 4
           ports:
             - name: ssh
