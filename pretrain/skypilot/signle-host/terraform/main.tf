@@ -43,13 +43,14 @@ resource "null_resource" "configure_kubectl" {
   depends_on = [google_container_cluster.primary]
 }
 
-# (4x8) TPU node pool for workloads
+# (2x4) TPU node pool for workloads
 resource "google_container_node_pool" "multi_host_tpu_node_pool" {
   project        = var.project_id
   cluster        = google_container_cluster.primary.name
-  name           = "multi-host-resources"
+  name           = "hongmao-dev-v6e"
   location       = google_container_cluster.primary.location
   node_locations = var.node_locations
+  node_count     = 1
 
   node_config {
     machine_type = var.tpu_machine_type

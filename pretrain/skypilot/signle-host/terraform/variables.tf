@@ -26,13 +26,13 @@ variable "node_locations" {
 variable "tpu_machine_type" {
   description = "The type of TPU machine to use"
   type        = string
-  default     = "ct6e-standard-4t"
+  default     = "ct6e-standard-8t"
 }
 
 variable "tpu_topology" {
   description = "The TPU topology (e.g., 2x4, 4x8)"
   type        = string
-  default     = "2x2"
+  default     = "2x4"
 }
 
 variable "tpu_min_node_count" {
@@ -44,7 +44,7 @@ variable "tpu_min_node_count" {
 variable "tpu_max_node_count" {
   description = "Maximum number of TPU nodes (must equal slice size: topology chips / chips per node)"
   type        = number
-  default     = 2
+  default     = 4
 }
 
 # CPU node pool variables
