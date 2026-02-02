@@ -66,12 +66,12 @@ be reflected inside the docker container.
 Once you want you upload your docker container to GCR, take a look at docker_upload_runner.sh                                                       
 ```
 
-# 创建 XPK 集群
+# 管理 XPK 集群
 
 XPK 会通过 Pathway + JobSet 的方式来执行训练负载
 
-`ACCELERATOR_TYPE` 根据拓扑结构决定是否创建 multihost node pool, 例如: `tpu7x-2x2x2`, `tpu7x-2x2x1`.
-`CLUSTER_CPU_MACHINE_TYPE` tpu node 具有污点 `google.com/tpu` 使得一些 k8s 系统组件无法被调度(这里是 core-dns), 需要一台 CPU 节点来承载系统组件的 pod.
+- `ACCELERATOR_TYPE` 根据拓扑结构决定是否创建 multihost 节点池(node pool), 例如: `tpu7x-2x2x2`, `tpu7x-2x2x1`.
+- `CLUSTER_CPU_MACHINE_TYPE` tpu 节点 具有污点 `google.com/tpu` 使得一些 k8s 系统组件无法被调度(这里是 core-dns), 需要一台 CPU 节点来承载系统组件的 pod.
 
 ```bash
 export PROJECT_ID="tpu-service-473302"
@@ -79,7 +79,11 @@ export CLUSTER_NAME="tpu7x-pre-train"
 export ZONE="us-central1-c"
 export ACCELERATOR_TYPE="tpu7x-2x2x2"
 export CLUSTER_CPU_MACHINE_TYPE=n1-standard-8
+```
 
+## 创建集群
+
+```bash
 xpk cluster create \
 --project=${PROJECT_ID} \
 --zone=${ZONE} \
@@ -88,8 +92,20 @@ xpk cluster create \
 --tpu-type=${ACCELERATOR_TYPE} \
 --spot
 ```
+
+## 删除集群
+
+```bash
+xpk cluster delete \
+--cluster=${CLUSTER_NAME} \
+--project=${PROJECT_ID} \
+--zone=${ZONE}
+```
+
 # 准备 Dataset
+
 修改 src/MaxText/configs/base.yml 后执行 `bash dependencies/scripts/docker_build_dependency_image.sh DEVICE=tpu MODE=stable`
+
 # 创建 workload
 
 ```bash
