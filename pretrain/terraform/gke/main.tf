@@ -1,3 +1,17 @@
+terraform {
+  required_version = ">= 1.14.3"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 7.0"
+    }
+  }
+  backend "gcs" {
+    bucket = "tpu-service-terraform-state"
+    prefix = "pretrain/gke"
+  }
+}
+
 provider "google" {
   project = var.project_id
   region  = var.region
@@ -26,7 +40,7 @@ resource "google_container_cluster" "primary" {
   # Explicitly disable deletion protection for this development environment
   deletion_protection = false
 
-  initial_node_count = 1
+  initial_node_count = var.cpu_node_count
 
   release_channel {
     channel = "RAPID"
@@ -43,24 +57,19 @@ resource "null_resource" "configure_kubectl" {
   depends_on = [google_container_cluster.primary]
 }
 
-# (2x4) TPU node pool for workloads
-resource "google_container_node_pool" "multi_host_tpu_node_pool" {
+# TPU node pool for workloads
+resource "google_container_node_pool" "tpu_node_pool" {
   project        = var.project_id
   cluster        = google_container_cluster.primary.name
-  name           = "hongmao-dev-v6e"
+  name           = var.tpu_node_pool_name
   location       = google_container_cluster.primary.location
   node_locations = var.node_locations
-  node_count     = 1
+  node_count     = var.tpu_min_node_count
 
   node_config {
     machine_type = var.tpu_machine_type
-    spot         = false
+    spot         = var.tpu_spot
   }
-
-  # placement_policy {
-  #   type         = "COMPACT"
-  #   tpu_topology = var.tpu_topology
-  # }
 
   autoscaling {
     min_node_count = var.tpu_min_node_count
@@ -72,7 +81,7 @@ resource "google_container_node_pool" "multi_host_tpu_node_pool" {
 resource "google_container_node_pool" "system_node_pool" {
   project        = var.project_id
   cluster        = google_container_cluster.primary.name
-  name           = "system-node-pool"
+  name           = var.cpu_node_pool_name
   location       = google_container_cluster.primary.location
   node_locations = var.node_locations
   node_count     = var.cpu_node_count

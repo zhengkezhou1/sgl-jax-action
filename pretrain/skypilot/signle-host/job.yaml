@@ -1,14 +1,28 @@
-num_nodes: 1
-
-resources:
-  cloud: kubernetes
-setup: |
-  git clone https://github.com/google/maxtext.git ~/maxtext
-  conda init bash
-  conda create -n maxtext -c conda-forge python=3.12 -y
-  conda activate maxtext
+num_nodes: 8
 
 run: |
-  cd ~/maxtext
-  conda activate maxtext
-  bash tools/setup/setup.sh DEVICE=tpu
+  conda activate ant-pretrain
+  cd ~/sky_workdir
+
+  echo "=== Environment Variables ==="
+  env | grep -E "(SKYPILOT|RAY|TPU|JAX)" | sort
+  echo "============================="
+
+  export TPU_WORKER_HOSTNAMES=$(echo "${SKYPILOT_NODE_IPS}" | tr ' ' ',' | tr '\n' ',' | sed 's/,$//')
+  export TPU_WORKER_ID=$SKYPILOT_NODE_RANK
+
+  echo "TPU_WORKER_ID: ${TPU_WORKER_ID}"
+  echo "TPU_WORKER_HOSTNAMES: ${TPU_WORKER_HOSTNAMES}"
+
+
+  python3 -m src.MaxText.train \
+    src/MaxText/configs/base.yml \
+    model_name='deepseek2-16b' \
+    base_output_directory=gs://test-ant-pretrain-output \
+    dataset_path=gs://test-ant-pretrain-dataset \
+    run_name=test-deepseek2-16b-on-skypilot \
+    per_device_batch_size=4 \
+    steps=100 \
+    enable_checkpointing=true \
+    checkpoint_period=500 \
+    log_period=50

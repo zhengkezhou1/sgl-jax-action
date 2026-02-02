@@ -1,4 +1,4 @@
-# 使用 XPK 在 MaxText 上进行预训练(TPU 7x)
+# 使用 XPK 进行预训练(TPU 7x)
 
 ## 构建 MaxText 基础镜像
 
@@ -94,10 +94,6 @@ xpk cluster delete \
 --project=${PROJECT_ID} \
 --zone=${ZONE}
 ```
-
-## 准备 Dataset
-
-修改 src/MaxText/configs/base.yml 后执行 `bash dependencies/scripts/docker_build_dependency_image.sh DEVICE=tpu MODE=stable`
 
 ## 创建 workload
 

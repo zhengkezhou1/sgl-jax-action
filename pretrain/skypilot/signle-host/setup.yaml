@@ -1,0 +1,45 @@
+num_nodes: 8
+
+resources:
+  cloud: kubernetes
+
+# 使用 sky 的workdir 会出现数据不一致现象
+file_mounts:
+  ~/sky_workdir: /Users/hongmao/workplace/ant-pretrain
+
+setup: |
+  conda init bash
+  conda create -n ant-pretrain -c conda-forge python=3.12 -y
+  conda activate ant-pretrain
+  cd ~/sky_workdir
+  bash tools/setup/setup.sh DEVICE=tpu
+
+run: |
+  echo "Cluster is ready. Use 'sky exec <cluster-name> job.yaml' to run jobs."
+
+# run: |
+#   cd ~/ant-pretrain
+#   conda activate ant-pretrain
+#   bash tools/setup/setup.sh DEVICE=tpu
+
+#   echo "=== All Environment Variables ==="
+#   env | grep -E "(SKYPILOT|RAY|TPU|JAX)" | sort
+#   echo "================================="
+#   export TPU_WORKER_HOSTNAMES=$(echo "${SKYPILOT_NODE_IPS}" | tr ' ' ',' | tr '\n' ',' | sed 's/,$//')
+#   export TPU_WORKER_ID=$SKYPILOT_NODE_RANK
+
+#   echo "TPU_WORKER_ID: ${TPU_WORKER_ID}"
+#   echo "TPU_WORKER_HOSTNAMES: ${TPU_WORKER_HOSTNAMES}"
+#   echo "====================="
+
+#   python3 -m src.MaxText.train \
+#     src/MaxText/configs/base.yml \
+#     model_name='llama3-8b' \
+#     base_output_directory=gs://test-ant-pretrain-output \
+#     dataset_path=gs://test-ant-pretrain-dataset \
+#     run_name=test-llama3-8b-run \
+#     per_device_batch_size=4 \
+#     steps=100 \
+#     enable_checkpointing=true \
+#     checkpoint_period=500 \
+#     log_period=50

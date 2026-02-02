@@ -1,7 +1,7 @@
 variable "project_id" {
   description = "The project ID to host the cluster in"
   type        = string
-  default = "tpu-service-473302"
+  default     = "tpu-service-473302"
 }
 
 variable "region" {
@@ -23,6 +23,12 @@ variable "node_locations" {
 }
 
 # TPU node pool variables
+variable "tpu_node_pool_name" {
+  description = "The name of the TPU node pool"
+  type        = string
+  default     = "tpu-v6e-node-pool"
+}
+
 variable "tpu_machine_type" {
   description = "The type of TPU machine to use"
   type        = string
@@ -35,6 +41,12 @@ variable "tpu_topology" {
   default     = "2x4"
 }
 
+variable "tpu_spot" {
+  description = "Whether to use spot instances for TPU nodes"
+  type        = bool
+  default     = true
+}
+
 variable "tpu_min_node_count" {
   description = "Minimum number of TPU nodes for autoscaling"
   type        = number
@@ -44,10 +56,16 @@ variable "tpu_min_node_count" {
 variable "tpu_max_node_count" {
   description = "Maximum number of TPU nodes (must equal slice size: topology chips / chips per node)"
   type        = number
-  default     = 4
+  default     = 8
 }
 
 # CPU node pool variables
+variable "cpu_node_pool_name" {
+  description = "The name of the CPU node pool"
+  type        = string
+  default     = "system-node-pool"
+}
+
 variable "cpu_machine_type" {
   description = "Machine type for CPU nodes (system components)"
   type        = string
