@@ -1,13 +1,6 @@
-使用 XPK 在 MaxText 上进行预训练(TPU 7x)
+# 使用 XPK 在 MaxText 上进行预训练(TPU 7x)
 
-# 创建存储桶用来管理数据集以及 checkpoint
-
-在当前仓库的 terraform 目录下下执行:
-```bash
-terraform apply
-```
-
-# 构建 MaxText 基础镜像
+## 构建 MaxText 基础镜像
 
 在 `ant-pretrain` 根目录下执行以下命令以构建 TPU 运行时环境:
 ```bash
@@ -66,7 +59,7 @@ be reflected inside the docker container.
 Once you want you upload your docker container to GCR, take a look at docker_upload_runner.sh                                                       
 ```
 
-# 管理 XPK 集群
+## 管理 XPK 集群
 
 XPK 会通过 Pathway + JobSet 的方式来执行训练负载
 
@@ -81,7 +74,7 @@ export ACCELERATOR_TYPE="tpu7x-2x2x2"
 export CLUSTER_CPU_MACHINE_TYPE=n1-standard-8
 ```
 
-## 创建集群
+### 创建集群
 
 ```bash
 xpk cluster create \
@@ -93,7 +86,7 @@ xpk cluster create \
 --spot
 ```
 
-## 删除集群
+### 删除集群
 
 ```bash
 xpk cluster delete \
@@ -102,11 +95,11 @@ xpk cluster delete \
 --zone=${ZONE}
 ```
 
-# 准备 Dataset
+## 准备 Dataset
 
 修改 src/MaxText/configs/base.yml 后执行 `bash dependencies/scripts/docker_build_dependency_image.sh DEVICE=tpu MODE=stable`
 
-# 创建 workload
+## 创建 workload
 
 ```bash
 export CLUSTER_NAME="tpu7x-pre-train"
