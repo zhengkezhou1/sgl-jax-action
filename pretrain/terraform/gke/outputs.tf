@@ -10,12 +10,12 @@ output "cluster_ca_certificate" {
   sensitive   = true
 }
 
-output "tpu_node_pool_name" {
-  description = "The name of the TPU node pool"
-  value       = google_container_node_pool.tpu_node_pool.name
-}
+# output "tpu_node_pool_name" {
+#   description = "The name of the TPU node pool"
+#   value       = google_container_node_pool.tpu_node_pool.name
+# }
 
-output "system_node_pool_name" {
-  description = "The name of the system node pool"
-  value       = google_container_node_pool.system_node_pool.name
-}
+# output "system_node_pool_name" {
+#   description = "The name of the system node pool"
+#   value       = google_container_node_pool.system_node_pool.name
+# }

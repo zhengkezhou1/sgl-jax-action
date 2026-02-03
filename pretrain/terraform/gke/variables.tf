@@ -7,56 +7,87 @@ variable "project_id" {
 variable "region" {
   description = "The region to host the cluster in"
   type        = string
-  default     = "asia-northeast1"
+  default     = "us-central1"
 }
 
 variable "cluster_name" {
   description = "The name of the GKE cluster"
   type        = string
-  default     = "tpu-v6e-pre-train"
+  default     = "test-ant-pre-train"
 }
 
 variable "node_locations" {
   description = "The comma-separated list of one or more zones where GKE creates the node pool"
   type        = list(string)
-  default     = ["asia-northeast1-b"]
+  default     = ["us-central1-c"]
 }
 
-# TPU node pool variables
-variable "tpu_node_pool_name" {
+# TPU v6e node pool variables
+variable "tpu_node_pool_name_v6e" {
   description = "The name of the TPU node pool"
   type        = string
   default     = "tpu-v6e-node-pool"
 }
 
-variable "tpu_machine_type" {
+variable "tpu_machine_type_v6e" {
   description = "The type of TPU machine to use"
   type        = string
-  default     = "ct6e-standard-8t"
+  default     = "ct6e-standard-4t"
 }
 
-variable "tpu_topology" {
+variable "tpu_topology_v6e" {
   description = "The TPU topology (e.g., 2x4, 4x8)"
   type        = string
   default     = "2x4"
+}
+
+variable "tpu_v6e_min_node_count" {
+  description = "Minimum number of TPU nodes for autoscaling"
+  type        = number
+  default     = 1
+}
+
+variable "tpu_v6e_max_node_count" {
+  description = "Maximum number of TPU nodes (must equal slice size: topology chips / chips per node)"
+  type        = number
+  default     = 8
+}
+
+# TPU v7x node pool variables
+variable "tpu_v7x_node_pool_name" {
+  description = "The name of the TPU node pool"
+  type        = string
+  default     = "tpu-v7x-node-pool"
+}
+
+variable "tpu_v7x_machine_type" {
+  description = "The type of TPU machine to use"
+  type        = string
+  default     = "tpu7x-standard-4t"
+}
+
+variable "tpu_v7x_topology" {
+  description = "The TPU topology (e.g., 2x2x1, 2x2x2)"
+  type        = string
+  default     = "2x2x1"
+}
+
+variable "tpu_v7x_min_node_count" {
+  description = "Minimum number of TPU nodes for autoscaling"
+  type        = number
+  default     = 0
+}
+
+variable "tpu_v7x_max_node_count" {
+  description = "Maximum number of TPU nodes (must equal slice size: topology chips / chips per node)"
+  type        = number
+  default     = 4
 }
 
 variable "tpu_spot" {
   description = "Whether to use spot instances for TPU nodes"
   type        = bool
   default     = true
-}
-
-variable "tpu_min_node_count" {
-  description = "Minimum number of TPU nodes for autoscaling"
-  type        = number
-  default     = 1
-}
-
-variable "tpu_max_node_count" {
-  description = "Maximum number of TPU nodes (must equal slice size: topology chips / chips per node)"
-  type        = number
-  default     = 8
 }
 
 # CPU node pool variables

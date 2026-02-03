@@ -7,7 +7,7 @@ kubernetes:
           effect: "NoSchedule"
       nodeSelector:
         cloud.google.com/gke-tpu-accelerator: tpu7x
-        cloud.google.com/gke-tpu-topology: 2x2x1
+        cloud.google.com/gke-tpu-topology: 2x2x2
       containers:
         - name: ray-node
           image: us-docker.pkg.dev/cloud-tpu-images/jax-ai-image/tpu@sha256:33fd74d1ac4a45de18855cfec6c41644bf59d5b4e76a343d32f52b6553f0e804

@@ -1,4 +1,4 @@
-num_nodes: 8
+num_nodes: 4
 
 run: |
   conda activate ant-pretrain
@@ -17,12 +17,12 @@ run: |
 
   python3 -m src.MaxText.train \
     src/MaxText/configs/base.yml \
-    model_name='deepseek2-16b' \
+    model_name='llama3-8b' \
     base_output_directory=gs://test-ant-pretrain-output \
     dataset_path=gs://test-ant-pretrain-dataset \
-    run_name=test-deepseek2-16b-on-skypilot \
+    run_name=test-llama3-8b-on-skypilot-tpuv7-2x2x1 \
     per_device_batch_size=4 \
-    steps=100 \
+    steps=10 \
     enable_checkpointing=true \
     checkpoint_period=500 \
     log_period=50
