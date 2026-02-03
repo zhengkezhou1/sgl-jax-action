@@ -57,27 +57,32 @@ resource "null_resource" "configure_kubectl" {
   depends_on = [google_container_cluster.primary]
 }
 
-# TPU v6e node pool for workloads
-# resource "google_container_node_pool" "tpu_v6e_node_pool" {
-#   project        = var.project_id
-#   cluster        = google_container_cluster.primary.name
-#   name           = var.tpu_node_pool_name_v6e
-#   location       = google_container_cluster.primary.location
-#   node_locations = var.node_locations
-#   node_count     = var.tpu_v6e_min_node_count
+# Signle host TPU v6e node pool for workloads
+resource "google_container_node_pool" "signle_host_v6e_2x2_node_pool" {
+  project        = var.project_id
+  cluster        = google_container_cluster.primary.name
+  name           = "signle-host-v6e-2x2-node-pool"
+  location       = google_container_cluster.primary.location
+  node_locations = var.node_locations
+  node_count     = var.tpu_v6e_min_node_count
 
-#   node_config {
-#     machine_type = var.tpu_machine_type_v6e
-#     spot         = var.tpu_spot
-#   }
+  node_config {
+    machine_type = var.tpu_v6e_machine_type
+    spot         = var.tpu_spot
+  }
 
-#   autoscaling {
-#     min_node_count = var.tpu_v6e_min_node_count
-#     max_node_count = var.tpu_v6e_max_node_count
-#   }
-# }
+  placement_policy {
+    type         = "COMPACT"
+    tpu_topology = "2x2"
+  }
 
-# TPU v7x node pool for workloads
+  autoscaling {
+    min_node_count = var.tpu_v6e_min_node_count
+    max_node_count = var.tpu_v6e_max_node_count
+  }
+}
+
+# Signle host TPU v7x node pool for workloads
 resource "google_container_node_pool" "signle_host_v7x_2x2x1_node_pool" {
   project        = var.project_id
   cluster        = google_container_cluster.primary.name
@@ -106,7 +111,7 @@ resource "google_compute_resource_policy" "multi-host-tpu7x-resource-policy" {
   }
 }
 
-# TPU v7x node pool for workloads
+#Multi Host TPU v7x node pool for workloads
 resource "google_container_node_pool" "multi_host_v7x_2x2x2_node_pool" {
   project        = var.project_id
   cluster        = google_container_cluster.primary.name

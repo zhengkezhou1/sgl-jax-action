@@ -39,7 +39,7 @@ run: |
     model_name='llama3-8b' \
     base_output_directory=gs://test-ant-pretrain-output \
     dataset_path=gs://test-ant-pretrain-dataset \
-    run_name=test-llama3-8b-on-skypilot-tpuv7-2x2x2 \
+    run_name=test-llama3-8b-on-skypilot-tpu7x-2x2x2 \
     per_device_batch_size=4 \
     steps=20 \
     enable_checkpointing=true \

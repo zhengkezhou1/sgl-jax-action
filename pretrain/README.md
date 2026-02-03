@@ -27,10 +27,10 @@ bash tools/data_generation/download_dataset.sh ${PROJECT_ID} ${DATASET_PATH}
 
 ## 使用不同的工具部署训练负载
 
+### skypilot
+
+[使用 skypilot 在 GKE 上进行预训练](/pretrain/skypilot/README.md)
+
 ### xpk 
 
 [使用 XPK 在 MaxText 上进行预训练](/pretrain/xpk/README.md)
-
-### skypilot
-
-[使用 skypilot 在 GKE 上进行预训练](/pretrain/skypilot/signle-host/README.md)
