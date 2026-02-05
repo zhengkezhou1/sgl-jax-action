@@ -10,6 +10,12 @@ variable "region" {
   default     = "us-central1"
 }
 
+variable "cluster_name" {
+  description = "The GKE cluster name"
+  type        = string
+  default     = "test-ant-pre-train"
+}
+
 variable "grafana_admin_password" {
   description = "Grafana admin password"
   type        = string

@@ -46,6 +46,13 @@ resource "google_container_cluster" "primary" {
     channel = "RAPID"
   }
 
+  # Enable Workload Identity to allow Kubernetes service accounts to act as
+  # Google Cloud service accounts. This provides a more secure way for workloads
+  # to access Google Cloud APIs without using node service account credentials.
+  workload_identity_config {
+    workload_pool = "${var.project_id}.svc.id.goog"
+  }
+
   remove_default_node_pool = true
 }
 
@@ -147,6 +154,13 @@ resource "google_container_node_pool" "system_node_pool" {
 
   node_config {
     machine_type = var.cpu_machine_type
+
+    # Enable GKE Metadata Server to support Workload Identity.
+    # This allows pods to authenticate as Google Cloud service accounts
+    # instead of using the node's service account.
+    workload_metadata_config {
+      mode = "GKE_METADATA"
+    }
   }
 }
 
