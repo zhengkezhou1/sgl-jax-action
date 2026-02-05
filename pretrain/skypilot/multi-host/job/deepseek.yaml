@@ -1,0 +1,53 @@
+num_nodes: 2
+
+run: |
+  conda activate ant-pretrain
+  cd ~/sky_workdir
+
+  echo "=== Environment Variables ==="
+  env | grep -E "(SKYPILOT|RAY|TPU|JAX)" | sort
+  echo "============================="
+
+  # Ensure SKYPILOT_NODE_IPS are newline separated for processing
+  IPS=$(echo "${SKYPILOT_NODE_IPS}" | tr ' ' '\n')
+  MASTER_ADDR=$(echo "${IPS}" | head -n1)
+  
+  export JAX_COORDINATOR_ADDRESS=${MASTER_ADDR}:8476
+  export JAX_PROCESS_COUNT=${SKYPILOT_NUM_NODES}
+  export JAX_PROCESS_ID=${SKYPILOT_NODE_RANK}
+  
+  echo "JAX_COORDINATOR_ADDRESS: ${JAX_COORDINATOR_ADDRESS}"
+  echo "JAX_PROCESS_COUNT: ${JAX_PROCESS_COUNT}"
+  echo "JAX_PROCESS_ID: ${JAX_PROCESS_ID}"
+
+  # Unset TPU_PROCESS_* variables as they can interfere with multi-host initialization
+  # forcing Libtpu to think it's a single process setup.
+  unset TPU_PROCESS_ADDRESSES
+  unset TPU_PROCESS_PORT
+
+  # Libtpu expects IP addresses WITHOUT port numbers in TPU_WORKER_HOSTNAMES
+  export TPU_WORKER_HOSTNAMES=$(echo "${IPS}" | tr '\n' ',' | sed 's/,$//')
+  export TPU_WORKER_ID=$SKYPILOT_NODE_RANK
+
+  echo "TPU_WORKER_ID: ${TPU_WORKER_ID}"
+  echo "TPU_WORKER_HOSTNAMES: ${TPU_WORKER_HOSTNAMES}"
+
+
+  python3 -m MaxText.train src/MaxText/configs/base.yml \
+      base_output_directory=gs://test-ant-pretrain-output \
+      run_name=test-deepseek-v2-lite-16b-on-skypilot-tpu7x-2x2x2 \
+      per_device_batch_size=4 \
+      enable_checkpointing=false \
+      model_name=deepseek2-16b \
+      ici_fsdp_parallelism=16 \
+      steps=100 \
+      max_target_length=1024 \
+      async_checkpointing=false \
+      tokenizer_type=huggingface \
+      tokenizer_path=deepseek-ai/DeepSeek-V2-Lite \
+      attention=flash \
+      dtype=bfloat16 \
+      weight_dtype=bfloat16 \
+      megablox=False \
+      sparse_matmul=False \
+      dataset_type=synthetic
