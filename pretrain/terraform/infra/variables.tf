@@ -13,7 +13,7 @@ variable "dataset_storage_bucket_name" {
 variable "output_storage_bucket_name" {
   description = "Name of the GCS bucket for storing model checkpoints and training outputs"
   type        = string
-  default     = "tpu-service-pretrain-output"
+  default     = "test-ant-pretrain-output"
 }
 
 variable "location" {

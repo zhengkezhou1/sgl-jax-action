@@ -22,6 +22,7 @@ data "google_compute_network" "default" {
   name    = "default"
   project = var.project_id
 }
+
 data "google_compute_subnetwork" "default" {
   name    = "default"
   region  = var.region
@@ -65,83 +66,83 @@ resource "null_resource" "configure_kubectl" {
 }
 
 # Signle host TPU v6e node pool for workloads
-resource "google_container_node_pool" "signle_host_v6e_2x2_node_pool" {
-  project        = var.project_id
-  cluster        = google_container_cluster.primary.name
-  name           = "signle-host-v6e-2x2-node-pool"
-  location       = google_container_cluster.primary.location
-  node_locations = var.node_locations
-  node_count     = var.tpu_v6e_min_node_count
+# resource "google_container_node_pool" "signle_host_v6e_2x2_node_pool" {
+#   project        = var.project_id
+#   cluster        = google_container_cluster.primary.name
+#   name           = "signle-host-v6e-2x2-node-pool"
+#   location       = google_container_cluster.primary.location
+#   node_locations = var.node_locations
+#   node_count     = var.tpu_v6e_min_node_count
 
-  node_config {
-    machine_type = var.tpu_v6e_machine_type
-    spot         = var.tpu_spot
-  }
+#   node_config {
+#     machine_type = var.tpu_v6e_machine_type
+#     spot         = var.tpu_spot
+#   }
 
-  placement_policy {
-    type         = "COMPACT"
-    tpu_topology = "2x2"
-  }
+#   placement_policy {
+#     type         = "COMPACT"
+#     tpu_topology = "2x2"
+#   }
 
-  autoscaling {
-    min_node_count = var.tpu_v6e_min_node_count
-    max_node_count = var.tpu_v6e_max_node_count
-  }
-}
+#   autoscaling {
+#     min_node_count = var.tpu_v6e_min_node_count
+#     max_node_count = var.tpu_v6e_max_node_count
+#   }
+# }
 
 # Signle host TPU v7x node pool for workloads
-resource "google_container_node_pool" "signle_host_v7x_2x2x1_node_pool" {
-  project        = var.project_id
-  cluster        = google_container_cluster.primary.name
-  name           = "signle-host-v7x-2x2x1-node-pool"
-  location       = google_container_cluster.primary.location
-  node_locations = var.node_locations
-  node_count     = var.tpu_v7x_min_node_count
+# resource "google_container_node_pool" "signle_host_v7x_2x2x1_node_pool" {
+#   project        = var.project_id
+#   cluster        = google_container_cluster.primary.name
+#   name           = "signle-host-v7x-2x2x1-node-pool"
+#   location       = google_container_cluster.primary.location
+#   node_locations = var.node_locations
+#   node_count     = var.tpu_v7x_min_node_count
 
-  node_config {
-    machine_type = var.tpu_v7x_machine_type
-    spot         = var.tpu_spot
-  }
+#   node_config {
+#     machine_type = var.tpu_v7x_machine_type
+#     spot         = var.tpu_spot
+#   }
 
-  autoscaling {
-    min_node_count = var.tpu_v7x_min_node_count
-    max_node_count = var.tpu_v7x_max_node_count
-  }
-}
+#   autoscaling {
+#     min_node_count = var.tpu_v7x_min_node_count
+#     max_node_count = var.tpu_v7x_max_node_count
+#   }
+# }
 
-resource "google_compute_resource_policy" "multi-host-tpu7x-resource-policy" {
-  name   = "multi-host-tpu7x-resource-policy"
-  region = var.region
-  workload_policy {
-    type = "HIGH_THROUGHPUT"
-    accelerator_topology = "2x2x2"
-  }
-}
+# resource "google_compute_resource_policy" "multi-host-tpu7x-resource-policy" {
+#   name   = "multi-host-tpu7x-resource-policy"
+#   region = var.region
+#   workload_policy {
+#     type                 = "HIGH_THROUGHPUT"
+#     accelerator_topology = "2x2x2"
+#   }
+# }
 
 #Multi Host TPU v7x node pool for workloads
-resource "google_container_node_pool" "multi_host_v7x_2x2x2_node_pool" {
-  project        = var.project_id
-  cluster        = google_container_cluster.primary.name
-  name           = "multi-host-v7x-2x2x2-node-pool"
-  location       = google_container_cluster.primary.location
-  node_locations = var.node_locations
-  node_count     = 2
+# resource "google_container_node_pool" "multi_host_v7x_2x2x2_node_pool" {
+#   project        = var.project_id
+#   cluster        = google_container_cluster.primary.name
+#   name           = "multi-host-v7x-2x2x2-node-pool"
+#   location       = google_container_cluster.primary.location
+#   node_locations = var.node_locations
+#   node_count     = 2
 
-  node_config {
-    machine_type = var.tpu_v7x_machine_type
-    spot         = var.tpu_spot
-  }
+#   node_config {
+#     machine_type = var.tpu_v7x_machine_type
+#     spot         = var.tpu_spot
+#   }
 
-  placement_policy {
-    policy_name = "multi-host-tpu7x-resource-policy"
-    type = "COMPACT"
-  }
+#   placement_policy {
+#     policy_name = "multi-host-tpu7x-resource-policy"
+#     type        = "COMPACT"
+#   }
 
-  autoscaling {
-    max_node_count       = 2
-    location_policy      = "ANY"
-  }
-}
+#   autoscaling {
+#     max_node_count  = 2
+#     location_policy = "ANY"
+#   }
+# }
 
 # CPU node pool for k8s system components
 resource "google_container_node_pool" "system_node_pool" {
